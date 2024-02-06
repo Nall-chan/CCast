@@ -1,0 +1,12 @@
+{
+    "id": "{21E489CA-B260-4978-B038-B4AA5E07C17D}",
+    "name": "Chrome Cast Discovery",
+    "type": 5,
+    "vendor": "Google",
+    "aliases": [],
+    "parentRequirements": [],
+    "childRequirements": [],
+    "implemented": [],
+    "prefix": "CCAST",
+    "url": "https://github.com/Nall-chan/CCast"
+}

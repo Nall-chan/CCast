@@ -1,0 +1,170 @@
+{
+    "elements": [
+        {
+            "type": "RowLayout",
+            "items": [
+                {
+                    "name": "Open",
+                    "type": "CheckBox",
+                    "width": "300px",
+                    "caption": "Active"
+                },
+                {
+                    "name": "Port",
+                    "type": "NumberSpinner",
+                    "width": "300px",
+                    "caption": "TCP-Port"
+                }
+            ]
+        },
+        {
+            "type": "RowLayout",
+            "items": [
+                {
+                    "type": "Label",
+                    "width": "300px",
+                    "caption": "Enter Address of Device in the parent Client-Socket."
+                },
+                {
+                    "type": "OpenObjectButton",
+                    "caption": "Open Client-Socket",
+                    "objectID": 0
+                }
+            ]
+        },
+        {
+            "type": "ExpansionPanel",
+            "caption": "Advanced power-on watchdog",
+            "items": [
+                {
+                    "type": "RowLayout",
+                    "items": [
+                        {
+                            "name": "Watchdog",
+                            "type": "CheckBox",
+                            "caption": "Check every",
+                            "onChange": "IPS_RequestAction($id,'Watchdog',$Watchdog);"
+                        },
+                        {
+                            "name": "Interval",
+                            "type": "NumberSpinner",
+                            "caption": "Interval",
+                            "width": "150px",
+                            "suffix": "seconds"
+                        }
+                    ]
+                },
+                {
+                    "type": "RowLayout",
+                    "items": [
+                        {
+                            "name": "ConditionType",
+                            "type": "Select",
+                            "caption": "Condition",
+                            "width": "275px",
+                            "onChange": "IPS_RequestAction($id,'ConditionType',$ConditionType);",
+                            "options": [
+                                {
+                                    "caption": "Network ping",
+                                    "value": 0
+                                },
+                                {
+                                    "caption": "Advanced condition",
+                                    "value": 1
+                                }
+                            ]
+                        },
+                        {
+                            "name": "ConditionPopup",
+                            "type": "PopupButton",
+                            "visible": false,
+                            "caption": "Advanced condition",
+                            "popup": {
+                                "caption": "Select condition",
+                                "items": [
+                                    {
+                                        "type": "SelectCondition",
+                                        "name": "WatchdogCondition"
+                                    }
+                                ]
+                            }
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "MediaSizeWidth",
+            "caption": "Width of media image",
+            "type": "NumberSpinner",
+            "suffix": "px",
+            "minimum": 60,
+            "maximum": 3000
+        },
+        {
+            "name": "AppIconSizeWidth",
+            "caption": "Width of App icon",
+            "type": "NumberSpinner",
+            "suffix": "px",
+            "minimum": 60,
+            "maximum": 3000
+        }
+    ],
+    "actions": [
+        {
+            "name": "urn",
+            "type": "ValidationTextBox",
+            "caption": "URN"
+        },
+        {
+            "name": "command",
+            "type": "ValidationTextBox",
+            "caption": "Text"
+        },
+        {
+            "type": "Button",
+            "caption": "Send Command to active App",
+            "onClick": "CCAST_SendCommandToApp($id,$urn,$command,json_decode($payload,true));"
+        },
+        {
+            "name": "payload",
+            "type": "ValidationTextBox",
+            "caption": "Text"
+        },
+        {
+            "type": "Button",
+            "caption": "Send Command to receiver-0",
+            "onClick": "CCAST_SendCommand($id,$urn,$command,json_decode($payload,true));"
+        },
+        {
+            "type": "Button",
+            "caption": "Request State",
+            "onClick": "CCAST_RequestState($id);"
+        },
+        {
+            "type": "Button",
+            "caption": "Send GetAppAvailability",
+            "onClick": "CCAST_GetAppAvailability($id);"
+        },
+        {
+            "type": "TestCenter"
+        }
+    ],
+    "status": [
+        {
+            "code": 102,
+            "icon": "active",
+            "caption": "Device connected."
+        },
+        {
+            "code": 104,
+            "icon": "inactive",
+            "caption": "Interface closed."
+        },
+        {
+            "code": 203,
+            "icon": "error",
+            "caption": "Could not connect to Device."
+        }
+    ]
+}

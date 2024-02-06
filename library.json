@@ -1,0 +1,12 @@
+{
+    "id": "{00BAA3DC-15EB-CA6B-701D-0C54AB6C45A5}",
+    "name": "Chrome Cast",
+    "author": "Michael Tröger",
+    "url": "https://github.com/Nall-chan/CCast",
+    "compatibility": {
+        "version": "6.4"
+    },
+    "version": "0.1",
+    "build": 1,
+    "date": 0
+}

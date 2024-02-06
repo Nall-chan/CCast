@@ -1,0 +1,16 @@
+{
+    "id": "{9034A9D8-F004-22EA-9391-BF2E5E1CAB31}",
+    "name": "Chrome Cast",
+    "type": 3,
+    "vendor": "Google",
+    "aliases": [],
+    "parentRequirements": [
+        "{79827379-F36E-4ADA-8A95-5F8D1DC92FA9}"
+    ],
+    "childRequirements": [],
+    "implemented": [
+        "{018EF6B5-AB94-40C6-AA53-46943E824ACF}"
+    ],
+    "prefix": "CCAST",
+    "url": "https://github.com/Nall-chan/CCast"
+}
