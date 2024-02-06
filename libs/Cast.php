@@ -2,8 +2,7 @@
 
 declare(strict_types=1);
 
-namespace
-{
+namespace {
     $AutoLoader = new AutoLoaderCCast('Google\Protobuf');
     $AutoLoader->register();
 
@@ -30,6 +29,7 @@ namespace
             }
         }
     }
+
     require_once __DIR__ . '/CCastProto.php';
     require_once __DIR__ . '/CCastMessage.php';
 }
@@ -67,6 +67,7 @@ namespace Cast\Device
         public const Interval = 'Interval';
         public const WatchdogCondition = 'WatchdogCondition';
     }
+
     class VariableIdents
     {
         public const Volume = 'level';
@@ -82,11 +83,13 @@ namespace Cast\Device
             self::AppId  => [],
         ];
     }
+
     class Timer
     {
-        public const Watchdog = 'Watchdog';
+        public const Watchdog = 'WatchdogTimer';
         public const ProgressState = 'ProgressState';
     }
+
     class TimeConvert
     {
         public static function ConvertSeconds(float $Time)
@@ -106,9 +109,7 @@ namespace Cast
     {
         //public const AuthNamespace = 'urn:x-cast:com.google.cast.tp.deviceauth';
         public const ConnectionNamespace = 'urn:x-cast:com.google.cast.tp.connection';
-
         public const HeartbeatNamespace = 'urn:x-cast:com.google.cast.tp.heartbeat';
-
         public const ReceiverNamespace = 'urn:x-cast:com.google.cast.receiver';
         public const MediaNamespace = 'urn:x-cast:com.google.cast.media';
         public const MultiZoneNamespace = 'urn:x-cast:com.google.cast.multizone';
@@ -117,7 +118,6 @@ namespace Cast
         public const BroadcastNamespace = 'urn:x-cast:com.google.cast.broadcast';
         public const SSE = 'urn:x-cast:com.google.cast.sse'; //Backdrop
         public const DefaultMediaRender = 'urn:x-cast:com.google.cast.cac';
-
         // remoting
         // webrtc
         //urn:x-cast:com.google.youtube.mdx
@@ -162,6 +162,7 @@ namespace Cast
             }, array_keys(self::$Apps), array_values(self::$Apps));
         }
     }
+
     class Commands
     {
         public const Ping = 'PING'; //heartbeat
@@ -220,6 +221,7 @@ namespace Cast
         public const InvalidRequest = 'INVALID_REQUEST';
         public const Presentation = 'PRESENTATION';
         public const Other = 'OTHER';
+
         public static $MediaCommands = [
             1 => self::Pause,
             2 => self::Seek,
@@ -242,6 +244,7 @@ namespace Cast
             262144  => self::StreamTransfer,
             524288  => self::Lyrics,
         ];
+
         public static function ListAvailableCommands(int $Available): array
         {
             $Commands = [];
@@ -252,49 +255,51 @@ namespace Cast
             }
             return $Commands;
         }
+
         public static function isCommandAvailable(int $Available, int $Command): bool
         {
             return ($Command & $Available) == $Command;
             //return self::$MediaCommands[]
         }
+
         /*
-     { TEXT: "TEXT", AUDIO: "AUDIO", VIDEO: "VIDEO" });
+            { TEXT: "TEXT", AUDIO: "AUDIO", VIDEO: "VIDEO" });
 
-        QUEUE_CHANGE: "QUEUE_CHANGE",
-        QUEUE_ITEMS: "QUEUE_ITEMS",
-        QUEUE_ITEM_IDS: "QUEUE_ITEM_IDS",
-        SHUTDOWN: "SHUTDOWN",
-        PLAY_AGAIN: "PLAY_AGAIN",
-        SEEK: "SEEK",
-        SET_PLAYBACK_RATE: "SET_PLAYBACK_RATE",
-        EDIT_TRACKS_INFO: "EDIT_TRACKS_INFO",
-        EDIT_AUDIO_TRACKS: "EDIT_AUDIO_TRACKS"
-        PRECACHE: "PRECACHE",
-        PRELOAD: "PRELOAD",
-        QUEUE_LOAD: "QUEUE_LOAD",
-        QUEUE_INSERT: "QUEUE_INSERT",
-        QUEUE_UPDATE: "QUEUE_UPDATE",
-        QUEUE_REMOVE: "QUEUE_REMOVE",
-        QUEUE_REORDER: "QUEUE_REORDER",
-        QUEUE_GET_ITEM_RANGE: "QUEUE_GET_ITEM_RANGE",
-        QUEUE_GET_ITEMS: "QUEUE_GET_ITEMS",
-        QUEUE_GET_ITEM_IDS: "QUEUE_GET_ITEM_IDS",
-        QUEUE_SHUFFLE: "QUEUE_SHUFFLE",
+            QUEUE_CHANGE: "QUEUE_CHANGE",
+            QUEUE_ITEMS: "QUEUE_ITEMS",
+            QUEUE_ITEM_IDS: "QUEUE_ITEM_IDS",
+            SHUTDOWN: "SHUTDOWN",
+            PLAY_AGAIN: "PLAY_AGAIN",
+            SEEK: "SEEK",
+            SET_PLAYBACK_RATE: "SET_PLAYBACK_RATE",
+            EDIT_TRACKS_INFO: "EDIT_TRACKS_INFO",
+            EDIT_AUDIO_TRACKS: "EDIT_AUDIO_TRACKS"
+            PRECACHE: "PRECACHE",
+            PRELOAD: "PRELOAD",
+            QUEUE_LOAD: "QUEUE_LOAD",
+            QUEUE_INSERT: "QUEUE_INSERT",
+            QUEUE_UPDATE: "QUEUE_UPDATE",
+            QUEUE_REMOVE: "QUEUE_REMOVE",
+            QUEUE_REORDER: "QUEUE_REORDER",
+            QUEUE_GET_ITEM_RANGE: "QUEUE_GET_ITEM_RANGE",
+            QUEUE_GET_ITEMS: "QUEUE_GET_ITEMS",
+            QUEUE_GET_ITEM_IDS: "QUEUE_GET_ITEM_IDS",
+            QUEUE_SHUFFLE: "QUEUE_SHUFFLE",
 
-        REQUEST_SEEK: "REQUEST_SEEK",
-        REQUEST_LOAD: "REQUEST_LOAD",
-        REQUEST_STOP: "REQUEST_STOP",
-        REQUEST_PAUSE: "REQUEST_PAUSE",
-        REQUEST_PRECACHE: "REQUEST_PRECACHE",
-        REQUEST_PLAY: "REQUEST_PLAY",
-        REQUEST_PLAY_AGAIN: "REQUEST_PLAY_AGAIN",
-        REQUEST_VOLUME_CHANGE: "REQUEST_VOLUME_CHANGE",
-        REQUEST_QUEUE_LOAD: "REQUEST_QUEUE_LOAD",
-        REQUEST_QUEUE_GET_ITEM_RANGE: "REQUEST_QUEUE_GET_ITEM_RANGE",
-        REQUEST_QUEUE_GET_ITEMS: "REQUEST_QUEUE_GET_ITEMS",
-        REQUEST_QUEUE_GET_ITEM_IDS: "REQUEST_QUEUE_GET_ITEM_IDS",
-        INBAND_TRACK_ADDED: "INBAND_TRACK_ADDED",
-        TRACKS_CHANGED: "TRACKS_CHANGED",
+            REQUEST_SEEK: "REQUEST_SEEK",
+            REQUEST_LOAD: "REQUEST_LOAD",
+            REQUEST_STOP: "REQUEST_STOP",
+            REQUEST_PAUSE: "REQUEST_PAUSE",
+            REQUEST_PRECACHE: "REQUEST_PRECACHE",
+            REQUEST_PLAY: "REQUEST_PLAY",
+            REQUEST_PLAY_AGAIN: "REQUEST_PLAY_AGAIN",
+            REQUEST_VOLUME_CHANGE: "REQUEST_VOLUME_CHANGE",
+            REQUEST_QUEUE_LOAD: "REQUEST_QUEUE_LOAD",
+            REQUEST_QUEUE_GET_ITEM_RANGE: "REQUEST_QUEUE_GET_ITEM_RANGE",
+            REQUEST_QUEUE_GET_ITEMS: "REQUEST_QUEUE_GET_ITEMS",
+            REQUEST_QUEUE_GET_ITEM_IDS: "REQUEST_QUEUE_GET_ITEM_IDS",
+            INBAND_TRACK_ADDED: "INBAND_TRACK_ADDED",
+            TRACKS_CHANGED: "TRACKS_CHANGED",
          */
 
         public static function GetType(string $Command): array
@@ -302,28 +307,32 @@ namespace Cast
             return ['type' => $Command];
         }
     }
+
     class PlayerState
     {
         public const Idle = 'IDLE';
         public const Play = 'PLAYING';
         public const Pause = 'PAUSED';
         public const Buffering = 'BUFFERING';
+
         /*
-        +        'IDLE': 'IDLE',
-        +        'LOADING': 'LOADING',
-        +        'LOADED': 'LOADED',
-        +        'PLAYING': 'PLAYING',
-        +        'PAUSED': 'PAUSED',
-        +        'STOPPED': 'STOPPED',
-        +        'SEEKING': 'SEEKING',
-        +        'ERROR': 'ERROR'
+            +        'IDLE': 'IDLE',
+            +        'LOADING': 'LOADING',
+            +        'LOADED': 'LOADED',
+            +        'PLAYING': 'PLAYING',
+            +        'PAUSED': 'PAUSED',
+            +        'STOPPED': 'STOPPED',
+            +        'SEEKING': 'SEEKING',
+            +        'ERROR': 'ERROR'
          */
+
         public static $StateToInt =
         [
             self::Idle              => 1,
             self::Play              => 2,
             self::Pause             => 3,
         ];
+
         public static $IntToAction =
         [
             0 => \Cast\Commands::Prev,
@@ -333,10 +342,12 @@ namespace Cast
             4 => \Cast\Commands::Next
         ];
     }
+
     class Payload
     {
         public const isString = 0;
         public const isBinary = 1;
+
         public static function makePayload(string $Command, array $Payload = []): string
         {
             return json_encode(
@@ -344,6 +355,7 @@ namespace Cast
             );
         }
     }
+
     // Class to represent a protobuf object for a command.
     class CastMessageOld
     {
@@ -395,10 +407,12 @@ namespace Cast
         {
             return ($this->Payload != '') ? json_decode($this->Payload, true) : null;
         }
+
         public function getSourceId(): string
         {
             return $this->SourceId;
         }
+
         public function getReceiverId(): string
         {
             return $this->ReceiverId;
@@ -414,7 +428,7 @@ namespace Cast
             $Data = [];
             while (strlen($Msg)) {
                 list($Index, $Type) = self::decodeIndexAndTyp($Msg);
-                switch($Type) {
+                switch ($Type) {
                     case self::DataTypInt:
                         $Value = self::decode7BitInt($Msg);
                         break;
@@ -547,10 +561,12 @@ namespace Cast
             $Payload = $this->Message->getPayload();
             return ($Payload != '') ? json_decode($Payload, true) : null;
         }
+
         public function getSourceId(): string
         {
             return $this->Message->getSourceId();
         }
+
         public function getReceiverId(): string
         {
             return $this->Message->getReceiverId();

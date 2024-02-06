@@ -2,14 +2,14 @@
 
 declare(strict_types=1);
 
-eval('declare(strict_types=1);namespace BoschSmartHomeDiscovery {?>' . file_get_contents(dirname(__DIR__) . '/libs/helper/DebugHelper.php') . '}');
+eval('declare(strict_types=1);namespace ChromeCastDiscovery {?>' . file_get_contents(dirname(__DIR__) . '/libs/helper/DebugHelper.php') . '}');
 require_once dirname(__DIR__) . '/libs/Cast.php';
 /**
  * @method bool SendDebug(string $Message, mixed $Data, int $Format)
  */
-class ChromeCastDiscovery extends IPSModule
+class ChromeCastDiscovery extends IPSModuleStrict
 {
-    use \BoschSmartHomeDiscovery\DebugHelper;
+    use \ChromeCastDiscovery\DebugHelper;
 
     public function GetConfigurationForm(): string
     {
@@ -54,15 +54,14 @@ class ChromeCastDiscovery extends IPSModule
                         'moduleID'         => \Cast\Device\GUID,
                         'configuration'    => [
                             \Cast\Device\Property::Open        => true,
-                            \Cast\Device\Property::Port        => 8009
+                            \Cast\Device\Property::Port        => $Device['port']
                         ]
                     ],
                     [
                         'moduleID'         => \Cast\IO\GUID,
                         'configuration'    => [
-                            \Cast\IO\Property::Open        => true,
                             \Cast\IO\Property::Host        => $Host,
-                            \Cast\IO\Property::Port        => 8009,
+                            \Cast\IO\Property::Port        => $Device['port'],
                             \Cast\IO\Property::UseSSL      => true,
                             \Cast\IO\Property::VerifyHost  => false,
                             \Cast\IO\Property::VerifyPeer  => false,
@@ -137,13 +136,14 @@ class ChromeCastDiscovery extends IPSModule
             }
             ksort($CastDevice['Hostname']);
             $this->SendDebug('Device', $CastDevice, 0);
-            array_push($Devices, ['name' => (isset($CastDevice['Name']) ? $CastDevice['Name'] : 'Cast Device(' . $CastDevice['Hostname'][0] . ')'), 'model' => (isset($CastDevice['ModelName']) ? $CastDevice['ModelName'] : 'unknown'), 'host'=>$CastDevice['Hostname']]);
+            array_push($Devices, ['name' => (isset($CastDevice['Name']) ? $CastDevice['Name'] : 'Cast Device(' . $CastDevice['Hostname'][0] . ')'), 'model' => (isset($CastDevice['ModelName']) ? $CastDevice['ModelName'] : 'unknown'), 'port'=>$CastDevice['Port'], 'host'=>$CastDevice['Hostname']]);
         }
         return $Devices;
     }
-    private static function FilterTXT(string &$Typ)
+
+    private static function FilterTXT(string &$Typ): bool
     {
-        switch($Typ) {
+        switch ($Typ) {
             case 'ID':
                 $Typ = 'DeviceId';
                 return true;
@@ -156,6 +156,7 @@ class ChromeCastDiscovery extends IPSModule
         }
         return false;
     }
+
     private function GetIPSInstances(): array
     {
         $InstanceIDList = IPS_GetInstanceListByModuleID(\Cast\Device\GUID);
