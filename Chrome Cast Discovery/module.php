@@ -36,6 +36,7 @@ class ChromeCastDiscovery extends IPSModuleStrict
             $Host = false;
             foreach ($Device['host'] as $DeviceHost) {
                 $InstanceID = array_search(strtolower($DeviceHost), $IPSDevices);
+                $this->SendDebug('IPSDevice', $InstanceID, 0);
                 if ($InstanceID) {
                     $Host = $DeviceHost;
                     break;
@@ -43,6 +44,7 @@ class ChromeCastDiscovery extends IPSModuleStrict
             }
             if (!$Host) {
                 $Host = array_shift($Device['host']);
+                $this->SendDebug('Host', $Host, 0);
             }
             $Values[] = [
                 'host'                => $Host,
@@ -74,13 +76,16 @@ class ChromeCastDiscovery extends IPSModuleStrict
                 unset($IPSDevices[$InstanceID]);
             }
         }
+        $this->SendDebug('oldIPSDevices', $IPSDevices, 0);
         foreach ($IPSDevices as $InstanceID => $Host) {
             $Values[] = [
-                'host'               => $Host,
-                'name'               => IPS_GetName($InstanceID),
-                'instanceID'         => $InstanceID,
+                'host'                => $Host,
+                'model'               => 'unknown',
+                'name'                => IPS_GetName($InstanceID),
+                'instanceID'          => $InstanceID,
             ];
         }
+        $this->SendDebug('Values', $Values, 0);
         return $Values;
     }
 

@@ -14,19 +14,18 @@ eval('declare(strict_types=1);namespace Cast {?>' . file_get_contents(__DIR__ . 
 /**
  * ChromeCast
  *
+ * @property int $ParentID
+ * @property string $Host
  * @property string $Buffer EmpfangsBuffer
  * @property int $RequestId
  * @property array $ReplyCMsgPayload
  * @property string $TransportId //actual App
- * @property string $ActualUrn //actual Urn
- * @property string $MediaSessionId //actual MediaSession
+ * @property int $MediaSessionId //actual MediaSession
  * @property float $PositionRAW
  * @property bool $isSeekable
  * @property float $DurationRAW
- * @property int $ParentID
  * @property int $supportedMediaCommands
  * @property bool $StatusIsChanging
- * @property string $Host
  * @method bool lock(string $ident)
  * @method void unlock(string $ident)
  * @method void SetValueBoolean(string $Ident, bool $value)
@@ -62,11 +61,12 @@ class ChromeCast extends IPSModuleStrict
         $this->RequestId = 1;
         $this->ReplyCMsgPayload = [];
         $this->TransportId = '';
-        $this->StatusIsChanging = false;
-        $this->supportedMediaCommands = 0;
+        $this->MediaSessionId = 0;
         $this->PositionRAW = 0;
         $this->isSeekable = false;
         $this->DurationRAW = 0;
+        $this->supportedMediaCommands = 0;
+        $this->StatusIsChanging = false;
         $this->RegisterPropertyBoolean(\Cast\Device\Property::Open, false);
         $this->RegisterPropertyInteger(\Cast\Device\Property::Port, 8009);
         $this->RegisterPropertyBoolean(\Cast\Device\Property::Watchdog, false);
@@ -78,6 +78,7 @@ class ChromeCast extends IPSModuleStrict
         $this->RegisterPropertyBoolean('enableRawDuration', true);
         $this->RegisterPropertyBoolean('enableRawPosition', true);
         $this->RegisterTimer(\Cast\Device\Timer::ProgressState, 0, 'IPS_RequestAction(' . $this->InstanceID . ',"' . \Cast\Device\Timer::ProgressState . '",true);');
+        $this->RegisterTimer(\Cast\Device\Timer::KeepAlive, 0, 'IPS_RequestAction(' . $this->InstanceID . ',"' . \Cast\Device\Timer::KeepAlive . '",true);');
         $this->RegisterTimer(\Cast\Device\Timer::Watchdog, 0, 'IPS_RequestAction(' . $this->InstanceID . ',"' . \Cast\Device\Timer::Watchdog . '",true);');
     }
 
@@ -227,13 +228,40 @@ class ChromeCast extends IPSModuleStrict
                             $this->SendDebug('IM_CHANGESTATUS', 'active', 0);
                             $this->LogMessage('Connected to ChromeCast', KL_NOTIFY);
                             $this->SetWatchdogTimer(false);
+                            $this->SetTimerInterval(\Cast\Device\Timer::KeepAlive, 60000);
                             $this->RequestState();
                             break;
-                        case IS_EBASE + 3: //ERROR RCP-Server
+                        case IS_EBASE + 1: //ERROR connection lost
                         case IS_INACTIVE:
-                            $this->SendDebug('IM_CHANGESTATUS', 'not active', 0);
-                            $this->SetWatchdogTimer(true);
+                            $this->SetTimerInterval(\Cast\Device\Timer::KeepAlive, 0);
                             $this->SetTimerInterval(\Cast\Device\Timer::ProgressState, 0);
+                            $this->SendDebug('IM_CHANGESTATUS', 'not active', 0);
+                            $this->supportedMediaCommands = 0;
+                            $this->Buffer = '';
+                            $this->RequestId = 1;
+                            $this->ReplyCMsgPayload = [];
+                            $this->TransportId = '';
+                            $this->PositionRAW = 0;
+                            $this->isSeekable = false;
+                            $this->DurationRAW = 0;
+                            $this->SetValue('title', '');
+                            $this->SetValue('artist', '');
+                            $this->SetValue('collection', '');
+                            $this->SetValue('duration', '');
+                            if ($this->ReadPropertyBoolean('enableRawDuration')) {
+                                $this->SetValue('durationRaw', 0);
+                            }
+                            $this->SetValue('currentTime', 0);
+
+                            $this->SetValue('position', '');
+                            if ($this->ReadPropertyBoolean('enableRawPosition')) {
+                                $this->SetValue('positionRaw', 0);
+                            }
+                            $this->SetIcon('');
+                            $this->SetMediaImage('');
+                            $this->updateControlsByMediaCommand(0);
+                            $this->SetWatchdogTimer(true);
+                            $this->SetValue(\Cast\Device\VariableIdents::PlayerState, 1);
                             break;
                     }
                     $this->SendDebug('MessageSink', 'StatusIsChanging now unlocked', 0);
@@ -283,6 +311,9 @@ class ChromeCast extends IPSModuleStrict
             return;
         }
         switch ($Ident) {
+            case \Cast\Device\Timer::KeepAlive:
+                $this->SendPing();
+                break;
             case \Cast\Device\Timer::Watchdog:
                 $this->Watchdog();
                 break;
@@ -340,16 +371,16 @@ class ChromeCast extends IPSModuleStrict
                 }
                 break;
             case 'positionRaw':
-                if ($this->isSeekable) {
-                    $this->Seek((float) $Value);
-                }
+                $this->Seek((float) $Value);
                 break;
             case 'currentTime':
-                if ($this->isSeekable) {
-                    if ($this->DurationRAW) {
-                        $Time = ($this->DurationRAW / 100) * $Value;
-                        $this->Seek($Time);
-                    }
+                if (!$this->MediaSessionId) {
+                    trigger_error($this->Translate('No media playback active'), E_USER_NOTICE);
+                    return;
+                }
+                if ($this->DurationRAW) {
+                    $Time = ($this->DurationRAW / 100) * $Value;
+                    $this->Seek($Time);
                 }
                 break;
         }
@@ -388,8 +419,12 @@ class ChromeCast extends IPSModuleStrict
         }
     }
 
-    public function SetPlayerState(string $State)
+    public function SetPlayerState(string $State): bool
     {
+        if (!$this->MediaSessionId) {
+            trigger_error($this->Translate('No media playback active'), E_USER_NOTICE);
+            return false;
+        }
         $RequestId = $this->RequestId++;
         $Payload = [];
         if ($State == \Cast\Commands::Next) {
@@ -401,47 +436,70 @@ class ChromeCast extends IPSModuleStrict
             $State = \Cast\Commands::QueueUpdate;
             $Payload['jump'] = -1;
         }
-        //$Urn = ($this->ActualUrn ? $this->ActualUrn : \Cast\Urn::MediaNamespace);
         $Urn = \Cast\Urn::MediaNamespace;
         $Payload = \Cast\Payload::makePayload($State, array_merge($Payload, ['requestId'=>$RequestId, 'mediaSessionId'=>$this->MediaSessionId]));
         $CMsg = new \Cast\CastMessage([$this->InstanceID, $this->TransportId, $Urn, 0, $Payload]);
         $Payload = $this->Send($CMsg, $RequestId);
         if ($Payload) {
             $this->DecodeEvent($CMsg, $Payload);
+            return true;
         }
+        return false;
     }
 
-    public function Seek(float $Time)
+    public function Seek(float $Time): bool
     {
+        if (!$this->MediaSessionId) {
+            trigger_error($this->Translate('No media playback active'), E_USER_NOTICE);
+            return false;
+        }
+        if (!$this->isSeekable) {
+            trigger_error($this->Translate('Media playback...'), E_USER_NOTICE);
+            return false;
+        }
         $RequestId = $this->RequestId++;
         $Payload = \Cast\Payload::makePayload(\Cast\Commands::Seek, ['currentTime'=>$Time, 'requestId'=>$RequestId, 'mediaSessionId'=>$this->MediaSessionId]);
         $CMsg = new \Cast\CastMessage([$this->InstanceID, $this->TransportId, \Cast\Urn::MediaNamespace, 0, $Payload]);
         $Payload = $this->Send($CMsg, $RequestId);
         if ($Payload) {
             $this->DecodeEvent($CMsg, $Payload);
+            return true;
         }
+        return false;
     }
 
-    public function SeekRelative(float $Time)
+    public function SeekRelative(float $Time): bool
     {
+        if (!$this->MediaSessionId) {
+            trigger_error($this->Translate('No media playback active'), E_USER_NOTICE);
+            return false;
+        }
         $RequestId = $this->RequestId++;
         $Payload = \Cast\Payload::makePayload(\Cast\Commands::Seek, ['relativeTime'=>$Time, 'requestId'=>$RequestId, 'mediaSessionId'=>$this->MediaSessionId]);
         $CMsg = new \Cast\CastMessage([$this->InstanceID, $this->TransportId, \Cast\Urn::MediaNamespace, 0, $Payload]);
         $Payload = $this->Send($CMsg, $RequestId);
         if ($Payload) {
             $this->DecodeEvent($CMsg, $Payload);
+            return true;
         }
+        return false;
     }
 
-    public function SetRepeat(string $Mode)
+    public function SetRepeat(string $Mode): bool
     {
+        if (!$this->MediaSessionId) {
+            trigger_error($this->Translate('No media playback active'), E_USER_NOTICE);
+            return false;
+        }
         $RequestId = $this->RequestId++;
         $Payload = \Cast\Payload::makePayload(\Cast\Commands::QueueUpdate, ['repeatMode'=>$Mode, 'requestId'=>$RequestId, 'mediaSessionId'=>$this->MediaSessionId]);
         $CMsg = new \Cast\CastMessage([$this->InstanceID, $this->TransportId, \Cast\Urn::MediaNamespace, 0, $Payload]);
         $Payload = $this->Send($CMsg, $RequestId);
         if ($Payload) {
             $this->DecodeEvent($CMsg, $Payload);
+            return true;
         }
+        return false;
     }
 
     public function GetAppAvailability()
@@ -465,7 +523,8 @@ class ChromeCast extends IPSModuleStrict
     // {"media":{"contentId":"http://192.168.201.253:3777/user/squeezebox/micha.png","streamType":"NONE","contentType":"image/PNG"}}
     //{"media":{"contentId":"http://192.168.201.253:3777/user/squeezebox/micha.png","streamType":"LIVE","contentType":"image/png"},"autoplay":true,"repeat":true}
     //{"mediaSessionId":12}
-
+    // $json = '{"type":"LOAD","media":{"contentId":"' . $url . '","streamType":"' . $streamType . '","contentType":"' . $contentType . '"},"autoplay":' . $autoPlay . ',"currentTime":' . $currentTime . ',"requestId":921489134}';
+    // $this->chromecast->sendMessage('urn:x-cast:com.google.cast.media', $json);
     // CLOSE an tp.connection und mit transportid => schließt die app
     //
 
@@ -484,11 +543,8 @@ class ChromeCast extends IPSModuleStrict
     public function RequestMediaState()
     {
         $RequestId = $this->RequestId++;
-        //$Urn = ($this->ActualUrn ? $this->ActualUrn : \Cast\Urn::MediaNamespace);
         $Urn = \Cast\Urn::MediaNamespace;
-        //if ($Urn == \Cast\Urn::DefaultMediaRender) {
         $Payload = \Cast\Payload::makePayload(\Cast\Commands::GetStatus, ['requestId'=>$RequestId]);
-        //}
 
         $CMsg = new \Cast\CastMessage([$this->InstanceID, $this->TransportId, $Urn, 0, $Payload]);
 
@@ -522,18 +578,20 @@ class ChromeCast extends IPSModuleStrict
     {
         $RequestId = $this->RequestId++;
         $Payload = \Cast\Payload::makePayload($Command, array_merge($Payload, ['requestId'=>$RequestId]));
-        $CMsg = new \Cast\CastMessage([$this->InstanceID, $this->TransportId, 'urn:x-cast:com.google.cast.' . $URN, 0, $Payload]);
+        $CMsg = new \Cast\CastMessage([$this->InstanceID, $this->TransportId, 'urn:x-cast:com.google.' . $URN, 0, $Payload]);
         $Payload = $this->Send($CMsg, $RequestId);
         if ($Payload) {
             $this->DecodeEvent($CMsg, $Payload);
         }
     }
 
-    public function SendPing()
+    public function SendPing(): bool
     {
         $Payload = \Cast\Payload::makePayload(\Cast\Commands::Ping);
         $CMsg = new \Cast\CastMessage([$this->InstanceID, 'receiver-0', \Cast\Urn::HeartbeatNamespace, 0, $Payload]);
-        $this->Send($CMsg);
+        $Result = $this->Send($CMsg);
+        $this->SendDebug('Ping Result', $Result, 0);
+        return $Result;
     }
 
     public function ReceiveData($JSONString): string
@@ -591,7 +649,8 @@ class ChromeCast extends IPSModuleStrict
             case IS_INACTIVE:
                 if ($this->GetStatus() != IS_INACTIVE) {
                     $this->SetStatus(IS_INACTIVE);
-                } break;
+                }
+                break;
             default:
                 if ($this->ParentID > 0) {
                     IPS_SetProperty($this->ParentID, \Cast\IO\Property::Open, false);
@@ -672,9 +731,9 @@ class ChromeCast extends IPSModuleStrict
     {
         if ($this->ReadPropertyBoolean(\Cast\Device\Property::Open)) {
             if ($this->ReadPropertyBoolean(\Cast\Device\Property::Watchdog)) {
-                $Interval = $this->ReadPropertyInteger(\Cast\Device\Property::Interval);
-                $Interval = ($Interval < 5) ? 0 : $Interval;
                 if ($Active) {
+                    $Interval = $this->ReadPropertyInteger(\Cast\Device\Property::Interval);
+                    $Interval = ($Interval < 5) ? 0 : $Interval;
                     $this->SetTimerInterval(\Cast\Device\Timer::Watchdog, $Interval * 1000);
                     $this->SendDebug(\Cast\Device\Timer::Watchdog, 'active', 0);
                     return;
@@ -770,7 +829,11 @@ class ChromeCast extends IPSModuleStrict
             $this->SendDebug('Send (' . $RequestId . ')', $CMsg->__debug(), 0);
             $this->SendQueuePush($RequestId);
         }
-        $this->SendDataToParent(json_encode(['DataID' => '{79827379-F36E-4ADA-8A95-5F8D1DC92FA9}', 'Buffer' => bin2hex($CMsg->getMessage())]));
+        $result = $this->SendDataToParent(json_encode(['DataID' => '{79827379-F36E-4ADA-8A95-5F8D1DC92FA9}', 'Buffer' => bin2hex($CMsg->getMessage())]));
+        if ($result === false) {
+            $this->SetStatus(IS_EBASE + 1);
+            return false;
+        }
         if ($RequestId == 0) {
             return true;
         }
@@ -809,12 +872,7 @@ class ChromeCast extends IPSModuleStrict
                         if ($CMsg->getReceiverId() == $this->TransportId) {
                             $this->TransportId = '';
                             $this->MediaSessionId = 0;
-                            if ($this->ReadPropertyBoolean('enableRawPosition')) {
-                                $this->DisableAction('positionRaw');
-                            }
-                            $this->DisableAction('currentTime');
-                            $this->DisableAction(\Cast\Device\VariableIdents::RepeatMode);
-                            $this->DisableAction(\Cast\Device\VariableIdents::PlayerState);
+                            $this->updateControlsByMediaCommand(0);
                         }
                         break;
                 }
@@ -827,34 +885,74 @@ class ChromeCast extends IPSModuleStrict
             case \Cast\Urn::MediaNamespace:
                 switch ($Payload['type']) {
                     case \Cast\Commands::MediaStatus:
+                        if (!count($Payload['status'])) {
+                            break;
+                        }
                         $Status = array_shift($Payload['status']);
                         if (isset($Status['mediaSessionId'])) {
                             $this->MediaSessionId = $Status['mediaSessionId'];
                         } else {
                             $this->MediaSessionId = 0;
                         }
-                        if ($Status['playerState'] != \Cast\PlayerState::Buffering) {
-                            if (isset($Status['supportedMediaCommands'])) {
-                                $this->updateControlsByMediaCommand($Status['supportedMediaCommands']);
+                        //todo doch auch customData:playerState ?! 5 = stop, 3 = buffer, 1 = play, 2= pause
+                        if (isset($Status['playerState'])) {
+                            if ($Status['playerState'] != \Cast\PlayerState::Buffering) {
+                                if (isset($Status['supportedMediaCommands'])) {
+                                    $this->updateControlsByMediaCommand($Status['supportedMediaCommands']);
+                                }
+                                $this->SetValue(\Cast\Device\VariableIdents::PlayerState, \Cast\PlayerState::$StateToInt[$Status['playerState']]);
                             }
-                            $this->SetValue(\Cast\Device\VariableIdents::PlayerState, \Cast\PlayerState::$StateToInt[$Status['playerState']]);
                         }
-                        //unset($Status['playerState']);
-                        /*foreach ($Status as $AppVariableIdent => $AppValue) {
-                            if (@$this->GetIDForIdent($AppVariableIdent)) {
-                                $this->SetValue($AppVariableIdent, $AppValue);
-                            }
-                        }*/
-
-                        /*                      Medienstream volumen ! nicht Device Volume
-                           if (isset($Status['volume']['level'])) {
-                                                    $this->SetValue(\Cast\Device\VariableIdents::Volume, (int) ($Status['volume']['level'] * 100));
-                                                }
-                                                if (isset($Status['volume']['muted'])) {
-                                                    $this->SetValue(\Cast\Device\VariableIdents::Muted, $Status['volume']['muted']);
-                                                }
-                         */ if (array_key_exists('media', $Status)) {
+                        if (array_key_exists('media', $Status)) {
                             $Media = $Status['media'];
+                            if (isset($Media['metadata']['metadataType'])) {
+                                $MetaData = $Media['metadata'];
+                                switch ($MetaData['metadataType']) {
+                                    case 0: //GenericMediaMetadata
+                                        // title string
+                                        // subtitle string
+                                        // images array url/width/height
+                                        // releaseDate string iso 8601
+                                        break;
+                                    case 1: //MovieMediaMetadata
+                                        // title string
+                                        // subtitle string
+                                        // studio string
+                                        // images array url/width/height
+                                        // releaseDate string iso 8601
+                                        break;
+                                    case 2: //TvShowMediaMetadata
+                                        // seriesTitle string
+                                        // subtitle string
+                                        // season int
+                                        // episode int
+                                        // images array url/width/height
+                                        // originalAirDate string iso 8601
+                                        break;
+                                    case 3: //MusicTrackMediaMetadata
+                                        // albumName string
+                                        // title string
+                                        // albumArtist string
+                                        // artist string
+                                        // composer string
+                                        // trackNumber int
+                                        // discNumber int
+                                        // images array url/width/height
+                                        // releaseDate string iso 8601
+                                        break;
+                                    case 4: //PhotoMediaMetadata
+                                        // title string
+                                        // artist string
+                                        // location string
+                                        // latitude float
+                                        // longitude float
+                                        // width int
+                                        // height int
+                                        // creationDateTime string iso 8601
+                                        break;
+                                }
+                            }
+
                             if (isset($Media['metadata']['title'])) {
                                 $this->SetValue('title', $Media['metadata']['title']);
                             } else {
@@ -902,11 +1000,12 @@ class ChromeCast extends IPSModuleStrict
                                 }
                             }
                         }
-
-                        if ($Status['playerState'] == 'PLAYING') {
-                            $this->SetTimerInterval('ProgressState', 1000);
-                        } else {
-                            $this->SetTimerInterval('ProgressState', 0);
+                        if (isset($Status['playerState'])) {
+                            if ($Status['playerState'] == 'PLAYING') {
+                                $this->SetTimerInterval('ProgressState', 1000);
+                            } else {
+                                $this->SetTimerInterval('ProgressState', 0);
+                            }
                         }
                         if (isset($Status['currentTime'])) {
                             if ($this->DurationRAW) {
@@ -963,17 +1062,6 @@ class ChromeCast extends IPSModuleStrict
                         if (array_key_exists('applications', $Status)) {
                             $ActualApp = array_shift($Status['applications']);
 
-                            /*if (isset($ActualApp['sessionId'])) {
-                                $this->MediaSessionId = $ActualApp['sessionId'];
-                            } else {
-                                $this->MediaSessionId = 0;
-                            }*/
-                            /*if (isset($ActualApp['namespaces'])) {
-                                $Ns = array_pop($ActualApp['namespaces']);
-                                if (isset($Ns['name'])) {
-                                    $this->ActualUrn = $Ns['name'];
-                                }
-                            }*/
                             if (array_key_exists('iconUrl', $ActualApp)) {
                                 $this->SetIcon($ActualApp['iconUrl']);
                                 unset($ActualApp['iconUrl']);
@@ -1074,10 +1162,10 @@ class ChromeCast extends IPSModuleStrict
                 $this->DecodeEvent($CMsg, $Payload);
             }
         }
-        $this->Buffer = $Tail;
         if (strlen($Tail) > 4) {
-            $this->DecodePacket('');
+            $this->DecodePacket($Tail);
         }
+        $this->Buffer = $Tail;
     }
 
     /**

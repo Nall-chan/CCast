@@ -88,6 +88,7 @@ namespace Cast\Device
     {
         public const Watchdog = 'WatchdogTimer';
         public const ProgressState = 'ProgressState';
+        public const KeepAlive = 'KeepAlive';
     }
 
     class TimeConvert
@@ -125,15 +126,15 @@ namespace Cast
 
     class Apps
     {
-        public const Audible = '25456794';
+        public const Audible = '25456794'; //no response on GetAppAvailability
         public const Backdrop = 'E8C28D3C';
         public const CastBridge = '46C1A819';
         public const ChromeMirroring = '0F5096E8';
         public const DefaultMediaReceiver = 'CC1AD845'; //'85CDB22F' old
         public const DisneyPlus = 'C3DE6BC2';
-        public const GooglePhotos = '96084372';
+        public const GooglePhotos = '96084372'; //no response on GetAppAvailability
         public const GooglePodcast = '3DFCDBD1';
-        public const Netflix = 'Netflix';
+        public const Netflix = 'CA5E8412';
         public const ScreenMirroring = '674A0243';
         public const YouTube = '233637DE';
         public const YouTubeMusic = '2DB7CC49';
@@ -149,7 +150,7 @@ namespace Cast
             self::GooglePhotos         => 'Google Photos',
             self::GooglePodcast        => 'Google Podcast',
             self::Netflix              => 'Netflix',
-            self::ScreenMirroring      => 'Screen irroring',
+            self::ScreenMirroring      => 'Screen Mirroring',
             self::YouTube              => 'YouTube',
             self::YouTubeMusic         => 'YouTube Music',
         ];
