@@ -879,7 +879,9 @@ class ChromeCast extends IPSModuleStrict
                 break;
             case \Cast\Urn::SSE:
                 if (array_key_exists('backendData', $Payload)) {
-                    $this->SetMediaImage(json_decode($Payload['backendData'], true)[0]);
+                    $BackendData = json_decode($Payload['backendData'], true);
+                    $this->SetMediaImage($BackendData[0]);
+                    $this->SetValue('collection', $BackendData[12]);
                 }
                 break;
             case \Cast\Urn::MediaNamespace:
