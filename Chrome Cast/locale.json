@@ -1,8 +1,42 @@
 {
     "translations": {
         "de": {
+            "Active": "Aktiv",
+            "Enter Address of Device in the parent Client-Socket.": "Adresse vom Gerät in dem übergeordneten Client-Socket einstellen.",
+            "Open Client-Socket": "Öffne Client-Socket",
+            "Advanced power-on watchdog": "Erweiterte Power-On Überwachung",
+            "Check every": "Prüfe alle",
+            "Interval": "Intervall",
+            "seconds": "Sekunden",
+            "Condition": "Bedingung",
+            "Network ping": "Netzwerk Ping",
+            "Advanced condition": "Erweiterte Bedingung",
+            "Select condition": "Wähle Bedingung",
+            "Width of media image": "Breite vom Media Bild",
+            "Width of App icon": "Breite vom App Icon",
+            "Request state": "Zustandsabfrage",
+            "Request App Availability": "Verfügbare Apps abfragen",
+            "Device connected.": "Gerät verbunden.",
+            "Interface closed.": "Verbindung geschlossen.",
+            "Connection lost.": "Verbindung verloren.",
+            "Active app": "Aktive App",
+            "Volume": "Lautstärke",
+            "Muted": "Stumm",
+            "Player State": "Wiedergabestatus",
+            "Repeat": "Wiederholung",
+            "Duration in seconds": "Dauer in Sekunden",
+            "Position in seconds": "Position in Sekunden",
+            "Duration": "Dauer",
+            "Position": "Position",
+            "Progress": "Fortschritt",
+            "Title": "Titel",
+            "Artist": "Künstler",
+            "Collection": "Sammlung",
+            "Could not connect to TCP-Server": "Konnte nicht mir TCP-Server verbinden",
             "No media playback active": "Keine Medienwiedergabe aktiv",
-            "Translation 2": "Übersetzung 2"
+            "Media playback not seekable": "Medienwiedergabe nicht durchsuchbar",
+            "ReplyCMsgPayload is locked": "ReplyCMsgPayload ist gesperrt",
+            "This module is free for non-commercial use,\r\nDonations in support of the author are accepted here:": "Dieses Modul ist für die nicht kommerzielle Nutzung kostenlos,\r\nSchenkungen als Unterstützung für den Autor werden hier akzeptiert:"
         }
     }
 }

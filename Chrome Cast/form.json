@@ -111,39 +111,14 @@
         }
     ],
     "actions": [
-        {
-            "name": "urn",
-            "type": "ValidationTextBox",
-            "caption": "URN"
-        },
-        {
-            "name": "command",
-            "type": "ValidationTextBox",
-            "caption": "Text"
-        },
-        {
+                {
             "type": "Button",
-            "caption": "Send Command to active App",
-            "onClick": "CCAST_SendCommandToApp($id,$urn,$command,json_decode($payload,true));"
-        },
-        {
-            "name": "payload",
-            "type": "ValidationTextBox",
-            "caption": "Text"
-        },
-        {
-            "type": "Button",
-            "caption": "Send Command to receiver-0",
-            "onClick": "CCAST_SendCommand($id,$urn,$command,json_decode($payload,true));"
-        },
-        {
-            "type": "Button",
-            "caption": "Request State",
+            "caption": "Request state",
             "onClick": "CCAST_RequestState($id);"
         },
         {
             "type": "Button",
-            "caption": "Send GetAppAvailability",
+            "caption": "Request App Availability",
             "onClick": "CCAST_GetAppAvailability($id);"
         },
         {

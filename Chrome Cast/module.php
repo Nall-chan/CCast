@@ -123,17 +123,17 @@ class ChromeCast extends IPSModuleStrict
         parent::ApplyChanges();
         $i = 0;
         $this->RegisterProfileStringEx('CCast.AppId.' . (string) $this->InstanceID, '', '', '', \Cast\Apps::getAllAppsAsProfileAssoziation());
-        $this->RegisterVariableString(\Cast\Device\VariableIdent::AppId, $this->Translate('appId'), 'CCast.AppId.' . (string) $this->InstanceID, ++$i);
+        $this->RegisterVariableString(\Cast\Device\VariableIdent::AppId, $this->Translate('Active app'), 'CCast.AppId.' . (string) $this->InstanceID, ++$i);
         $this->EnableAction(\Cast\Device\VariableIdent::AppId);
 
-        $this->RegisterVariableInteger(\Cast\Device\VariableIdent::Volume, $this->Translate('level'), '~Volume', ++$i);
+        $this->RegisterVariableInteger(\Cast\Device\VariableIdent::Volume, $this->Translate('Volume'), '~Volume', ++$i);
         $this->EnableAction(\Cast\Device\VariableIdent::Volume);
-        $this->RegisterVariableBoolean(\Cast\Device\VariableIdent::Muted, $this->Translate('muted'), '~Mute', ++$i);
+        $this->RegisterVariableBoolean(\Cast\Device\VariableIdent::Muted, $this->Translate('Muted'), '~Mute', ++$i);
         $this->EnableAction(\Cast\Device\VariableIdent::Muted);
 
-        $this->RegisterVariableInteger(\Cast\Device\VariableIdent::PlayerState, $this->Translate('playerState'), '~Playback', ++$i);
+        $this->RegisterVariableInteger(\Cast\Device\VariableIdent::PlayerState, $this->Translate('Player State'), '~Playback', ++$i);
         $this->EnableAction(\Cast\Device\VariableIdent::PlayerState);
-        $this->RegisterVariableString(\Cast\Device\VariableIdent::RepeatMode, $this->Translate('repeatMode'), '', ++$i);
+        $this->RegisterVariableString(\Cast\Device\VariableIdent::RepeatMode, $this->Translate('Repeat'), '', ++$i);
 
         if ($this->ReadPropertyBoolean(\Cast\Device\Property::EnableRawDuration)) {
             $this->RegisterVariableInteger(\Cast\Device\VariableIdent::DurationRaw, $this->Translate('Duration in seconds'), '', ++$i);
@@ -150,11 +150,11 @@ class ChromeCast extends IPSModuleStrict
         $this->RegisterVariableString(\Cast\Device\VariableIdent::Duration, $this->Translate('Duration'), '', ++$i);
         $this->RegisterVariableString(\Cast\Device\VariableIdent::Position, $this->Translate('Position'), '', ++$i);
 
-        $this->RegisterVariableFloat(\Cast\Device\VariableIdent::CurrentTime, $this->Translate('currentTime'), '~Progress', ++$i);
+        $this->RegisterVariableFloat(\Cast\Device\VariableIdent::CurrentTime, $this->Translate('Progress'), '~Progress', ++$i);
 
-        $this->RegisterVariableString(\Cast\Device\VariableIdent::Title, $this->Translate('title'), '~Song', ++$i);
-        $this->RegisterVariableString(\Cast\Device\VariableIdent::Artist, $this->Translate('artist'), '~Artist', ++$i);
-        $this->RegisterVariableString(\Cast\Device\VariableIdent::Collection, $this->Translate('collection'), '', ++$i);
+        $this->RegisterVariableString(\Cast\Device\VariableIdent::Title, $this->Translate('Title'), '~Song', ++$i);
+        $this->RegisterVariableString(\Cast\Device\VariableIdent::Artist, $this->Translate('Artist'), '~Artist', ++$i);
+        $this->RegisterVariableString(\Cast\Device\VariableIdent::Collection, $this->Translate('Collection'), '', ++$i);
 
         if (IPS_GetKernelRunlevel() != KR_READY) {
             $this->RegisterMessage(0, IPS_KERNELSTARTED);
@@ -186,7 +186,7 @@ class ChromeCast extends IPSModuleStrict
         $Open = $this->CheckCondition();
         if ($Open) {
             if (!$this->CheckPort()) {
-                echo $this->Translate('Could not connect to TCP-Server.');
+                echo $this->Translate('Could not connect to TCP-Server');
                 $Open = false;
             }
         }
@@ -451,7 +451,7 @@ class ChromeCast extends IPSModuleStrict
             return false;
         }
         if (!$this->isSeekable) {
-            trigger_error($this->Translate('Media playback...'), E_USER_NOTICE);
+            trigger_error($this->Translate('Media playback not seekable'), E_USER_NOTICE);
             return false;
         }
         $RequestId = $this->RequestId++;
