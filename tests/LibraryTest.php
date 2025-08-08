@@ -10,6 +10,10 @@ class LibraryTest extends TestCaseSymconValidation
     {
         $this->validateLibrary(__DIR__ . '/..');
     }
+    public function testValidateCastDiscovery(): void
+    {
+        $this->validateModule(__DIR__ . '/../Chrome Cast Discovery');
+    }
     public function testValidateCastDevice(): void
     {
         $this->validateModule(__DIR__ . '/../Chrome Cast');

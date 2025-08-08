@@ -186,7 +186,7 @@ class CCastMessage extends \Google\Protobuf\Internal\Message
      */
     public function setPayload($var)
     {
-        GPBUtil::checkString($var, true);
+        GPBUtil::checkString($var, false);
         $this->Payload = $var;
 
         return $this;

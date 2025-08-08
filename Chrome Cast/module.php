@@ -19,13 +19,17 @@ eval('declare(strict_types=1);namespace Cast {?>' . file_get_contents(__DIR__ . 
  * @property string $Buffer EmpfangsBuffer
  * @property int $RequestId
  * @property array $ReplyCMsgPayload
+ * @property string $actualApp //actual App
  * @property string $TransportId //actual App
+ * @property string $screenId // mdxSessionStatus
+ * @property string $deviceId // mdxSessionStatus
  * @property int $MediaSessionId //actual MediaSession
  * @property float $PositionRAW
  * @property bool $isSeekable
  * @property float $DurationRAW
  * @property int $supportedMediaCommands
  * @property bool $StatusIsChanging
+ * @property bool $isIdleScreen
  * @method bool lock(string $ident)
  * @method void unlock(string $ident)
  * @method void SetValueBoolean(string $Ident, bool $value)
@@ -60,13 +64,17 @@ class ChromeCast extends IPSModuleStrict
         $this->Buffer = '';
         $this->RequestId = 1;
         $this->ReplyCMsgPayload = [];
+        $this->actualApp = '';
         $this->TransportId = '';
+        $this->screenId = '';
+        $this->deviceId = '';
         $this->MediaSessionId = 0;
         $this->PositionRAW = 0;
         $this->isSeekable = false;
         $this->DurationRAW = 0;
         $this->supportedMediaCommands = 0;
         $this->StatusIsChanging = false;
+        $this->isIdleScreen = true;
         $this->RegisterPropertyBoolean(\Cast\Device\Property::Open, false);
         $this->RegisterPropertyInteger(\Cast\Device\Property::Port, 8009);
         $this->RegisterPropertyBoolean(\Cast\Device\Property::Watchdog, false);
@@ -75,8 +83,8 @@ class ChromeCast extends IPSModuleStrict
         $this->RegisterPropertyString(\Cast\Device\Property::WatchdogCondition, '');
         $this->RegisterPropertyInteger(\Cast\Device\Property::MediaSizeWidth, 512);
         $this->RegisterPropertyInteger(\Cast\Device\Property::AppIconSizeWidth, 90);
-        $this->RegisterPropertyBoolean('enableRawDuration', true);
-        $this->RegisterPropertyBoolean('enableRawPosition', true);
+        $this->RegisterPropertyBoolean(\Cast\Device\Property::EnableRawDuration, true);
+        $this->RegisterPropertyBoolean(\Cast\Device\Property::EnableRawPosition, true);
         $this->RegisterTimer(\Cast\Device\Timer::ProgressState, 0, 'IPS_RequestAction(' . $this->InstanceID . ',"' . \Cast\Device\Timer::ProgressState . '",true);');
         $this->RegisterTimer(\Cast\Device\Timer::KeepAlive, 0, 'IPS_RequestAction(' . $this->InstanceID . ',"' . \Cast\Device\Timer::KeepAlive . '",true);');
         $this->RegisterTimer(\Cast\Device\Timer::Watchdog, 0, 'IPS_RequestAction(' . $this->InstanceID . ',"' . \Cast\Device\Timer::Watchdog . '",true);');
@@ -101,54 +109,52 @@ class ChromeCast extends IPSModuleStrict
         $this->Buffer = '';
         $this->RequestId = 1;
         $this->ReplyCMsgPayload = [];
+        $this->actualApp = '';
         $this->TransportId = '';
-
+        $this->screenId = '';
+        $this->deviceId = '';
         $this->PositionRAW = 0;
         $this->isSeekable = false;
         $this->DurationRAW = 0;
+        $this->isIdleScreen = true;
 
         $this->SetWatchdogTimer(false);
 
         parent::ApplyChanges();
         $i = 0;
         $this->RegisterProfileStringEx('CCast.AppId.' . (string) $this->InstanceID, '', '', '', \Cast\Apps::getAllAppsAsProfileAssoziation());
-        $this->RegisterVariableString('appId', 'appId', 'CCast.AppId.' . (string) $this->InstanceID, ++$i);
-        $this->EnableAction('appId');
+        $this->RegisterVariableString(\Cast\Device\VariableIdent::AppId, $this->Translate('appId'), 'CCast.AppId.' . (string) $this->InstanceID, ++$i);
+        $this->EnableAction(\Cast\Device\VariableIdent::AppId);
 
-        $this->RegisterVariableBoolean('isIdleScreen', 'isIdleScreen', '', ++$i);
-        $this->RegisterVariableBoolean('senderConnected', 'senderConnected', '', ++$i);
-        $this->RegisterVariableString('controlType', 'controlType', '', ++$i);
+        $this->RegisterVariableInteger(\Cast\Device\VariableIdent::Volume, $this->Translate('level'), '~Volume', ++$i);
+        $this->EnableAction(\Cast\Device\VariableIdent::Volume);
+        $this->RegisterVariableBoolean(\Cast\Device\VariableIdent::Muted, $this->Translate('muted'), '~Mute', ++$i);
+        $this->EnableAction(\Cast\Device\VariableIdent::Muted);
 
-        $this->RegisterVariableInteger(\Cast\Device\VariableIdents::Volume, 'level', '~Volume', ++$i);
-        $this->EnableAction(\Cast\Device\VariableIdents::Volume);
-        $this->RegisterVariableBoolean(\Cast\Device\VariableIdents::Muted, 'muted', '~Mute', ++$i);
-        $this->EnableAction(\Cast\Device\VariableIdents::Muted);
+        $this->RegisterVariableInteger(\Cast\Device\VariableIdent::PlayerState, $this->Translate('playerState'), '~Playback', ++$i);
+        $this->EnableAction(\Cast\Device\VariableIdent::PlayerState);
+        $this->RegisterVariableString(\Cast\Device\VariableIdent::RepeatMode, $this->Translate('repeatMode'), '', ++$i);
 
-        $this->RegisterVariableInteger(\Cast\Device\VariableIdents::PlayerState, 'playerState', '~Playback', ++$i);
-        $this->EnableAction(\Cast\Device\VariableIdents::PlayerState);
-        $this->RegisterVariableString(\Cast\Device\VariableIdents::RepeatMode, 'repeatMode', '', ++$i);
-        $this->RegisterVariableString(\Cast\Device\VariableIdents::Shuffle, 'shuffleMode', '', ++$i);
-
-        if ($this->ReadPropertyBoolean('enableRawDuration')) {
-            $this->RegisterVariableInteger('durationRaw', $this->Translate('Duration in seconds'), '', ++$i);
+        if ($this->ReadPropertyBoolean(\Cast\Device\Property::EnableRawDuration)) {
+            $this->RegisterVariableInteger(\Cast\Device\VariableIdent::DurationRaw, $this->Translate('Duration in seconds'), '', ++$i);
         } else {
-            $this->UnregisterVariable('durationRaw');
+            $this->UnregisterVariable(\Cast\Device\VariableIdent::DurationRaw);
         }
 
-        if ($this->ReadPropertyBoolean('enableRawPosition')) {
-            $this->RegisterVariableInteger('positionRaw', $this->Translate('Position in seconds'), '', ++$i);
+        if ($this->ReadPropertyBoolean(\Cast\Device\Property::EnableRawDuration)) {
+            $this->RegisterVariableInteger(\Cast\Device\VariableIdent::PositionRaw, $this->Translate('Position in seconds'), '', ++$i);
         } else {
-            $this->UnregisterVariable('positionRaw');
+            $this->UnregisterVariable(\Cast\Device\VariableIdent::PositionRaw);
         }
 
-        $this->RegisterVariableString('duration', $this->Translate('Duration'), '', ++$i);
-        $this->RegisterVariableString('position', $this->Translate('Position'), '', ++$i);
+        $this->RegisterVariableString(\Cast\Device\VariableIdent::Duration, $this->Translate('Duration'), '', ++$i);
+        $this->RegisterVariableString(\Cast\Device\VariableIdent::Position, $this->Translate('Position'), '', ++$i);
 
-        $this->RegisterVariableFloat('currentTime', 'currentTime', '~Progress', ++$i);
+        $this->RegisterVariableFloat(\Cast\Device\VariableIdent::CurrentTime, $this->Translate('currentTime'), '~Progress', ++$i);
 
-        $this->RegisterVariableString('title', 'title', '~Song', ++$i);
-        $this->RegisterVariableString('artist', 'artist', '~Artist', ++$i);
-        $this->RegisterVariableString('collection', 'collection', '', ++$i);
+        $this->RegisterVariableString(\Cast\Device\VariableIdent::Title, $this->Translate('title'), '~Song', ++$i);
+        $this->RegisterVariableString(\Cast\Device\VariableIdent::Artist, $this->Translate('artist'), '~Artist', ++$i);
+        $this->RegisterVariableString(\Cast\Device\VariableIdent::Collection, $this->Translate('collection'), '', ++$i);
 
         if (IPS_GetKernelRunlevel() != KR_READY) {
             $this->RegisterMessage(0, IPS_KERNELSTARTED);
@@ -236,32 +242,13 @@ class ChromeCast extends IPSModuleStrict
                             $this->SetTimerInterval(\Cast\Device\Timer::KeepAlive, 0);
                             $this->SetTimerInterval(\Cast\Device\Timer::ProgressState, 0);
                             $this->SendDebug('IM_CHANGESTATUS', 'not active', 0);
-                            $this->supportedMediaCommands = 0;
                             $this->Buffer = '';
                             $this->RequestId = 1;
                             $this->ReplyCMsgPayload = [];
-                            $this->TransportId = '';
-                            $this->PositionRAW = 0;
-                            $this->isSeekable = false;
-                            $this->DurationRAW = 0;
-                            $this->SetValue('title', '');
-                            $this->SetValue('artist', '');
-                            $this->SetValue('collection', '');
-                            $this->SetValue('duration', '');
-                            if ($this->ReadPropertyBoolean('enableRawDuration')) {
-                                $this->SetValue('durationRaw', 0);
-                            }
-                            $this->SetValue('currentTime', 0);
-
-                            $this->SetValue('position', '');
-                            if ($this->ReadPropertyBoolean('enableRawPosition')) {
-                                $this->SetValue('positionRaw', 0);
-                            }
                             $this->SetIcon('');
                             $this->SetMediaImage('');
-                            $this->updateControlsByMediaCommand(0);
+                            $this->ClearMediaVariables();
                             $this->SetWatchdogTimer(true);
-                            $this->SetValue(\Cast\Device\VariableIdents::PlayerState, 1);
                             break;
                     }
                     $this->SendDebug('MessageSink', 'StatusIsChanging now unlocked', 0);
@@ -337,43 +324,47 @@ class ChromeCast extends IPSModuleStrict
                 $this->Connect($Value);
                 if ($this->TransportId != $Value) {
                     $this->TransportId = $Value;
+                    if ($this->isIdleScreen) {
+                        $this->RequestIdleState();
+                    } else {
                     $this->RequestMediaState();
                 }
+                }
                 break;
-            case \Cast\Device\VariableIdents::Volume:
+            case \Cast\Device\VariableIdent::Volume:
                 $this->SetVolumen($Value / 100);
                 break;
-            case \Cast\Device\VariableIdents::Muted:
+            case \Cast\Device\VariableIdent::Muted:
                 $this->SetMute((bool) $Value);
                 break;
-            case \Cast\Device\VariableIdents::AppId:
+            case \Cast\Device\VariableIdent::AppId:
                 $this->LaunchApp($Value);
                 break;
-            case \Cast\Device\VariableIdents::PlayerState:
+            case \Cast\Device\VariableIdent::PlayerState:
                 $this->SetPlayerState(\Cast\PlayerState::$IntToAction[(int) $Value]);
                 break;
-            case \Cast\Device\VariableIdents::RepeatMode:
+            case \Cast\Device\VariableIdent::RepeatMode:
                 $this->SetRepeat($Value);
                 break;
-            case 'ProgressState':
+            case \Cast\Device\Timer::ProgressState:
                 if ($this->DurationRAW) {
                     if ($this->PositionRAW < $this->DurationRAW) {
                         $this->PositionRAW++;
                         $Value = (100 / $this->DurationRAW) * $this->PositionRAW;
-                        $this->SetValue('currentTime', $Value);
-                        $this->SetValue('position', \Cast\Device\TimeConvert::ConvertSeconds($this->PositionRAW));
-                        if ($this->ReadPropertyBoolean('enableRawPosition')) {
-                            $this->SetValue('positionRaw', $this->PositionRAW);
+                        $this->SetValue(\Cast\Device\VariableIdent::CurrentTime, $Value);
+                        $this->SetValue(\Cast\Device\VariableIdent::Position, \Cast\Device\TimeConvert::ConvertSeconds($this->PositionRAW));
+                        if ($this->ReadPropertyBoolean(\Cast\Device\Property::EnableRawPosition)) {
+                            $this->SetValue(\Cast\Device\VariableIdent::PositionRaw, $this->PositionRAW);
                         }
                     }
                 } else {
-                    $this->SetTimerInterval('ProgressState', 0);
+                    $this->SetTimerInterval(\Cast\Device\Timer::ProgressState, 0);
                 }
                 break;
-            case 'positionRaw':
+            case \Cast\Device\VariableIdent::PositionRaw:
                 $this->Seek((float) $Value);
                 break;
-            case 'currentTime':
+            case \Cast\Device\VariableIdent::CurrentTime:
                 if (!$this->MediaSessionId) {
                     trigger_error($this->Translate('No media playback active'), E_USER_NOTICE);
                     return;
@@ -386,7 +377,7 @@ class ChromeCast extends IPSModuleStrict
         }
     }
 
-    public function SetVolumen(float $Level)
+    public function SetVolumen(float $Level): bool
     {
         $RequestId = $this->RequestId++;
         $Payload = \Cast\Payload::makePayload(\Cast\Commands::SetVolume, ['requestId'=>$RequestId, 'volume'=>['level'=>$Level]]);
@@ -394,10 +385,12 @@ class ChromeCast extends IPSModuleStrict
         $Payload = $this->Send($CMsg, $RequestId);
         if ($Payload) {
             $this->DecodeEvent($CMsg, $Payload);
+            return true;
         }
+        return false;
     }
 
-    public function SetMute(bool $Mute)
+    public function SetMute(bool $Mute): bool
     {
         $RequestId = $this->RequestId++;
         $Payload = \Cast\Payload::makePayload(\Cast\Commands::SetVolume, ['requestId'=>$RequestId, 'volume'=>['muted'=>$Mute]]);
@@ -405,10 +398,12 @@ class ChromeCast extends IPSModuleStrict
         $Payload = $this->Send($CMsg, $RequestId);
         if ($Payload) {
             $this->DecodeEvent($CMsg, $Payload);
+            return true;
         }
+        return false;
     }
 
-    public function LaunchApp(string $AppId)
+    public function LaunchApp(string $AppId): bool
     {
         $RequestId = $this->RequestId++;
         $Payload = \Cast\Payload::makePayload(\Cast\Commands::Launch, ['requestId'=>$RequestId, 'appId'=>$AppId]);
@@ -416,7 +411,9 @@ class ChromeCast extends IPSModuleStrict
         $Payload = $this->Send($CMsg, $RequestId);
         if ($Payload) {
             $this->DecodeEvent($CMsg, $Payload);
+            return $AppId == $this->actualApp;
         }
+        return false;
     }
 
     public function SetPlayerState(string $State): bool
@@ -427,13 +424,13 @@ class ChromeCast extends IPSModuleStrict
         }
         $RequestId = $this->RequestId++;
         $Payload = [];
-        if ($State == \Cast\Commands::Next) {
-            $State = \Cast\Commands::QueueUpdate;
+        if ($State == \Cast\MediaCommands::Next) {
+            $State = \Cast\MediaCommands::QueueUpdate;
             $Payload['jump'] = 1;
         }
 
-        if ($State == \Cast\Commands::Prev) {
-            $State = \Cast\Commands::QueueUpdate;
+        if ($State == \Cast\MediaCommands::Prev) {
+            $State = \Cast\MediaCommands::QueueUpdate;
             $Payload['jump'] = -1;
         }
         $Urn = \Cast\Urn::MediaNamespace;
@@ -458,7 +455,7 @@ class ChromeCast extends IPSModuleStrict
             return false;
         }
         $RequestId = $this->RequestId++;
-        $Payload = \Cast\Payload::makePayload(\Cast\Commands::Seek, ['currentTime'=>$Time, 'requestId'=>$RequestId, 'mediaSessionId'=>$this->MediaSessionId]);
+        $Payload = \Cast\Payload::makePayload(\Cast\MediaCommands::Seek, ['currentTime'=>$Time, 'requestId'=>$RequestId, 'mediaSessionId'=>$this->MediaSessionId]);
         $CMsg = new \Cast\CastMessage([$this->InstanceID, $this->TransportId, \Cast\Urn::MediaNamespace, 0, $Payload]);
         $Payload = $this->Send($CMsg, $RequestId);
         if ($Payload) {
@@ -475,7 +472,7 @@ class ChromeCast extends IPSModuleStrict
             return false;
         }
         $RequestId = $this->RequestId++;
-        $Payload = \Cast\Payload::makePayload(\Cast\Commands::Seek, ['relativeTime'=>$Time, 'requestId'=>$RequestId, 'mediaSessionId'=>$this->MediaSessionId]);
+        $Payload = \Cast\Payload::makePayload(\Cast\MediaCommands::Seek, ['relativeTime'=>$Time, 'requestId'=>$RequestId, 'mediaSessionId'=>$this->MediaSessionId]);
         $CMsg = new \Cast\CastMessage([$this->InstanceID, $this->TransportId, \Cast\Urn::MediaNamespace, 0, $Payload]);
         $Payload = $this->Send($CMsg, $RequestId);
         if ($Payload) {
@@ -492,7 +489,7 @@ class ChromeCast extends IPSModuleStrict
             return false;
         }
         $RequestId = $this->RequestId++;
-        $Payload = \Cast\Payload::makePayload(\Cast\Commands::QueueUpdate, ['repeatMode'=>$Mode, 'requestId'=>$RequestId, 'mediaSessionId'=>$this->MediaSessionId]);
+        $Payload = \Cast\Payload::makePayload(\Cast\MediaCommands::QueueUpdate, ['repeatMode'=>$Mode, 'requestId'=>$RequestId, 'mediaSessionId'=>$this->MediaSessionId]);
         $CMsg = new \Cast\CastMessage([$this->InstanceID, $this->TransportId, \Cast\Urn::MediaNamespace, 0, $Payload]);
         $Payload = $this->Send($CMsg, $RequestId);
         if ($Payload) {
@@ -502,7 +499,21 @@ class ChromeCast extends IPSModuleStrict
         return false;
     }
 
-    public function GetAppAvailability()
+    public function SetLike(bool $Liked): bool
+    {
+        $RequestId = $this->RequestId++;
+        $Payload = \Cast\Payload::makePayload(\Cast\Commands::UserAction, ['userAction' => 'LIKE', 'userActionContext'=>'TRACK', 'requestId'=>$RequestId, 'mediaSessionId'=>$this->MediaSessionId]);
+        //$CMsg = new \Cast\CastMessage([$this->InstanceID, $this->TransportId, \Cast\Urn::MediaNamespace, 0, $Payload]);
+        $CMsg = new \Cast\CastMessage([$this->InstanceID, 'receiver-0', \Cast\Urn::ReceiverNamespace, 0, $Payload]);
+        $Payload = $this->Send($CMsg, $RequestId);
+        if ($Payload) {
+            $this->DecodeEvent($CMsg, $Payload);
+            return true;
+        }
+        return false;
+    }
+
+    public function GetAppAvailability(): bool
     {
         $RequestId = $this->RequestId++;
         $Request = [
@@ -514,22 +525,78 @@ class ChromeCast extends IPSModuleStrict
         $Payload = $this->Send($CMsg, $RequestId);
         if ($Payload) {
             //$this->DecodeEvent($CMsg, $Payload);
+            return true;
         }
+        return false;
     }
 
-    // LAUNCH {"appId":"233637DE"} an receiver
-
-    //{ "contentId": "http://192.168.201.253:3777/user/squeezebox/micha.png", }
-    // {"media":{"contentId":"http://192.168.201.253:3777/user/squeezebox/micha.png","streamType":"NONE","contentType":"image/PNG"}}
-    //{"media":{"contentId":"http://192.168.201.253:3777/user/squeezebox/micha.png","streamType":"LIVE","contentType":"image/png"},"autoplay":true,"repeat":true}
-    //{"mediaSessionId":12}
-    // $json = '{"type":"LOAD","media":{"contentId":"' . $url . '","streamType":"' . $streamType . '","contentType":"' . $contentType . '"},"autoplay":' . $autoPlay . ',"currentTime":' . $currentTime . ',"requestId":921489134}';
-    // $this->chromecast->sendMessage('urn:x-cast:com.google.cast.media', $json);
-    // CLOSE an tp.connection und mit transportid => schließt die app
-    //
-
-    public function RequestState()
+    public function LoadMediaURL(string $Url, string $contentType = 'video/mp4', bool $isLive = false): bool
     {
+        if ($this->actualApp != \Cast\Apps::DefaultMediaReceiver) {
+            if (!$this->LaunchApp(\Cast\Apps::DefaultMediaReceiver)) {
+                return false;
+            }
+            IPS_Sleep(1000);
+        }
+        $RequestId = $this->RequestId++;
+        $Payload =
+        [
+            'media'=> [
+                'contentUrl'  => $Url,
+                'streamType'  => $isLive ? 'LIVE' : 'BUFFERED',
+                'contentType' => $contentType
+            ],
+            'requestId'=> $RequestId
+        ];
+
+        $Payload = \Cast\Payload::makePayload(\Cast\Commands::Load, $Payload);
+        $CMsg = new \Cast\CastMessage([$this->InstanceID, $this->TransportId, \Cast\Urn::MediaNamespace, 0, $Payload]);
+        $Payload = $this->Send($CMsg, $RequestId);
+        if ($Payload) {
+            $this->DecodeEvent($CMsg, $Payload);
+            return true;
+        }
+        return false;
+    }
+    public function LoadMediaId(string $Id, string $contentType = 'video/mp4', bool $isLive = false): bool
+    {
+        if ($this->actualApp != \Cast\Apps::DefaultMediaReceiver) {
+            if (!$this->LaunchApp(\Cast\Apps::DefaultMediaReceiver)) {
+                return false;
+            }
+            IPS_Sleep(1000);
+        }
+        $RequestId = $this->RequestId++;
+        $Payload =
+        [
+            'media'=> [
+                'contentId'   => $Id,
+                'streamType'  => $isLive ? 'LIVE' : 'BUFFERED',
+                'contentType' => $contentType
+            ],
+            'requestId'=> $RequestId
+        ];
+
+        $Payload = \Cast\Payload::makePayload(\Cast\Commands::Load, $Payload);
+        $CMsg = new \Cast\CastMessage([$this->InstanceID, $this->TransportId, \Cast\Urn::MediaNamespace, 0, $Payload]);
+        $Payload = $this->Send($CMsg, $RequestId);
+        if ($Payload) {
+            $this->DecodeEvent($CMsg, $Payload);
+            return true;
+        }
+        return false;
+
+    }
+    public function CloseApp(): bool
+    {
+        $Payload = \Cast\Payload::makePayload(\Cast\Commands::Close);
+        $CMsg = new \Cast\CastMessage([$this->InstanceID, $this->TransportId, \Cast\Urn::ConnectionNamespace, 0, $Payload]);
+        $Payload = $this->Send($CMsg);
+        return $Payload;
+    }
+    public function RequestState(): bool
+    {
+        $this->SendDebug(__FUNCTION__, '', 0);
         $this->Connect();
         $RequestId = $this->RequestId++;
         $Payload = \Cast\Payload::makePayload(\Cast\Commands::GetStatus, ['requestId'=>$RequestId]);
@@ -537,11 +604,14 @@ class ChromeCast extends IPSModuleStrict
         $Payload = $this->Send($CMsg, $RequestId);
         if ($Payload) {
             $this->DecodeEvent($CMsg, $Payload);
+            return true;
         }
+        return false;
     }
 
-    public function RequestMediaState()
+    public function RequestMediaState(): bool
     {
+        $this->SendDebug(__FUNCTION__, '', 0);
         $RequestId = $this->RequestId++;
         $Urn = \Cast\Urn::MediaNamespace;
         $Payload = \Cast\Payload::makePayload(\Cast\Commands::GetStatus, ['requestId'=>$RequestId]);
@@ -556,14 +626,25 @@ class ChromeCast extends IPSModuleStrict
         $Payload = $this->Send($CMsg, $RequestId);
         if ($Payload) {
             $this->DecodeEvent($CMsg, $Payload);
-        } else {
-            $this->TransportId = '';
-            $this->MediaSessionId = 0;
-            $this->updateControlsByMediaCommand(0);
+            return true;
         }
+        /*
+            $this->SendDebug(__FUNCTION__,'Clear TransportId & MediaSessionId',0);
+            $this->ClearMediaVariables();
+         */
+        return false;
+        }
+
+    public function RequestIdleState(): void
+    {
+        $this->SendDebug(__FUNCTION__, '', 0);
+        $Urn = \Cast\Urn::SSE;
+        $Payload = \Cast\Payload::makePayload(\Cast\Commands::GetStatus);
+        $CMsg = new \Cast\CastMessage([$this->InstanceID, $this->TransportId, $Urn, 0, $Payload]);
+        $Payload = $this->Send($CMsg);
     }
 
-    public function SendCommand(string $URN, string $Command, array $Payload = [])
+    public function SendCommand(string $URN, string $Command, array $Payload = []): bool
     {
         $RequestId = $this->RequestId++;
         $Payload = \Cast\Payload::makePayload($Command, array_merge($Payload, ['requestId'=>$RequestId]));
@@ -571,10 +652,12 @@ class ChromeCast extends IPSModuleStrict
         $Payload = $this->Send($CMsg, $RequestId);
         if ($Payload) {
             $this->DecodeEvent($CMsg, $Payload);
+            return true;
         }
+        return false;
     }
 
-    public function SendCommandToApp(string $URN, string $Command, array $Payload = [])
+    public function SendCommandToApp(string $URN, string $Command, array $Payload = []): bool
     {
         $RequestId = $this->RequestId++;
         $Payload = \Cast\Payload::makePayload($Command, array_merge($Payload, ['requestId'=>$RequestId]));
@@ -582,7 +665,9 @@ class ChromeCast extends IPSModuleStrict
         $Payload = $this->Send($CMsg, $RequestId);
         if ($Payload) {
             $this->DecodeEvent($CMsg, $Payload);
+            return true;
         }
+        return false;
     }
 
     public function SendPing(): bool
@@ -590,7 +675,6 @@ class ChromeCast extends IPSModuleStrict
         $Payload = \Cast\Payload::makePayload(\Cast\Commands::Ping);
         $CMsg = new \Cast\CastMessage([$this->InstanceID, 'receiver-0', \Cast\Urn::HeartbeatNamespace, 0, $Payload]);
         $Result = $this->Send($CMsg);
-        $this->SendDebug('Ping Result', $Result, 0);
         return $Result;
     }
 
@@ -725,7 +809,7 @@ class ChromeCast extends IPSModuleStrict
     /**
      * Aktiviert / Deaktiviert den WatchdogTimer.
      *
-     * @param bool $Active True für aktiv, false für desaktiv.
+     * @param bool $Active True für aktiv, false für inaktiv.
      */
     private function SetWatchdogTimer(bool $Active): void
     {
@@ -812,8 +896,12 @@ class ChromeCast extends IPSModuleStrict
         }
 
         $this->SendDebug('Refresh mediaUrl', $MediaUrl, 0);
-
+        if ($MediaRAW) {
         IPS_SetMediaContent($MediaId, base64_encode($MediaRAW));
+        } else {
+            //todo Fehler ausgeben.
+        }
+
     }
 
     private function ConnectToApp(string $TransportId): void
@@ -856,6 +944,14 @@ class ChromeCast extends IPSModuleStrict
         $this->Send($CMsg);
     }
 
+    /**
+     * DecodeEvent
+     *
+     * @todo Strings auf consts anpassen und decodieren weiter ausbauen
+     * @param  mixed $CMsg
+     * @param  array $Payload
+     * @return void
+     */
     private function DecodeEvent(\Cast\CastMessage $CMsg, array $Payload): void
     {
         switch ($CMsg->getUrn()) {
@@ -869,10 +965,9 @@ class ChromeCast extends IPSModuleStrict
             case \Cast\Urn::ConnectionNamespace:
                 switch ($Payload['type']) {
                     case \Cast\Commands::Close:
-                        if ($CMsg->getReceiverId() == $this->TransportId) {
-                            $this->TransportId = '';
-                            $this->MediaSessionId = 0;
-                            $this->updateControlsByMediaCommand(0);
+                        if ($CMsg->getSourceId() == $this->TransportId) {
+                            $this->SendDebug(__FUNCTION__, 'Clear TransportId & MediaSessionId', 0);
+                            $this->ClearMediaVariables();
                         }
                         break;
                 }
@@ -881,7 +976,7 @@ class ChromeCast extends IPSModuleStrict
                 if (array_key_exists('backendData', $Payload)) {
                     $BackendData = json_decode($Payload['backendData'], true);
                     $this->SetMediaImage($BackendData[0]);
-                    $this->SetValue('collection', $BackendData[12]);
+                    $this->SetValue(\Cast\Device\VariableIdent::Collection, $BackendData[12]);
                 }
                 break;
             case \Cast\Urn::MediaNamespace:
@@ -902,7 +997,7 @@ class ChromeCast extends IPSModuleStrict
                                 if (isset($Status['supportedMediaCommands'])) {
                                     $this->updateControlsByMediaCommand($Status['supportedMediaCommands']);
                                 }
-                                $this->SetValue(\Cast\Device\VariableIdents::PlayerState, \Cast\PlayerState::$StateToInt[$Status['playerState']]);
+                                $this->SetValue(\Cast\Device\VariableIdent::PlayerState, \Cast\PlayerState::$StateToInt[$Status['playerState']]);
                             }
                         }
                         if (array_key_exists('media', $Status)) {
@@ -955,23 +1050,23 @@ class ChromeCast extends IPSModuleStrict
                                 }
                             }
 
-                            if (isset($Media['metadata']['title'])) {
-                                $this->SetValue('title', $Media['metadata']['title']);
+                            if (isset($Media['metadata'][\Cast\Device\VariableIdent::Title])) {
+                                $this->SetValue(\Cast\Device\VariableIdent::Title, $Media['metadata'][\Cast\Device\VariableIdent::Title]);
                             } else {
-                                $this->SetValue('title', '');
+                                $this->SetValue(\Cast\Device\VariableIdent::Title, '');
                             }
-                            if (isset($Media['metadata']['artist'])) {
-                                $this->SetValue('artist', $Media['metadata']['artist']);
+                            if (isset($Media['metadata'][\Cast\Device\VariableIdent::Artist])) {
+                                $this->SetValue(\Cast\Device\VariableIdent::Artist, $Media['metadata'][\Cast\Device\VariableIdent::Artist]);
                             } else {
-                                $this->SetValue('artist', '');
+                                $this->SetValue(\Cast\Device\VariableIdent::Artist, '');
                             }
                             if (isset($Media['metadata']['albumName'])) {
-                                $this->SetValue('collection', $Media['metadata']['albumName']);
+                                $this->SetValue(\Cast\Device\VariableIdent::Collection, $Media['metadata']['albumName']);
                             } else {
-                                if (isset($Media['customData']['mediaItem']['title'])) {
-                                    $this->SetValue('collection', $Media['customData']['mediaItem']['title']);
+                                if (isset($Media['customData']['mediaItem'][\Cast\Device\VariableIdent::Title])) {
+                                    $this->SetValue(\Cast\Device\VariableIdent::Collection, $Media['customData']['mediaItem'][\Cast\Device\VariableIdent::Title]);
                                 } else {
-                                    $this->SetValue('collection', '');
+                                    $this->SetValue(\Cast\Device\VariableIdent::Collection, '');
                                 }
                             }
                             //metadata:title
@@ -986,51 +1081,49 @@ class ChromeCast extends IPSModuleStrict
                             //customData:artists
                             //customData:title
 
-                            if (isset($Media['duration'])) {
-                                //$this->SetTimerInterval('ProgressState', 1000);
-                                $this->DurationRAW = $Media['duration'];
-                                $this->SetValue('duration', \Cast\Device\TimeConvert::ConvertSeconds($Media['duration']));
-                                if ($this->ReadPropertyBoolean('enableRawDuration')) {
-                                    $this->SetValue('durationRaw', $Media['duration']);
+                            if (isset($Media[\Cast\Device\VariableIdent::Duration])) {
+                                $this->DurationRAW = $Media[\Cast\Device\VariableIdent::Duration];
+                                $this->SetValue(\Cast\Device\VariableIdent::Duration, \Cast\Device\TimeConvert::ConvertSeconds($Media[\Cast\Device\VariableIdent::Duration]));
+                                if ($this->ReadPropertyBoolean(\Cast\Device\Property::EnableRawDuration)) {
+                                    $this->SetValue(\Cast\Device\VariableIdent::DurationRaw, $Media[\Cast\Device\VariableIdent::Duration]);
                                 }
                             } else {
-                                //$this->SetTimerInterval('ProgressState', 0);
                                 $this->DurationRAW = 0;
-                                $this->SetValue('duration', '');
-                                if ($this->ReadPropertyBoolean('enableRawDuration')) {
-                                    $this->SetValue('durationRaw', 0);
+                                $this->SetValue(\Cast\Device\VariableIdent::Duration, '');
+                                if ($this->ReadPropertyBoolean(\Cast\Device\Property::EnableRawDuration)) {
+                                    $this->SetValue(\Cast\Device\VariableIdent::DurationRaw, 0);
                                 }
                             }
                         }
                         if (isset($Status['playerState'])) {
                             if ($Status['playerState'] == 'PLAYING') {
-                                $this->SetTimerInterval('ProgressState', 1000);
+                                $this->SetTimerInterval(\Cast\Device\Timer::ProgressState, 1000);
                             } else {
-                                $this->SetTimerInterval('ProgressState', 0);
+                                $this->SetTimerInterval(\Cast\Device\Timer::ProgressState, 0);
                             }
                         }
-                        if (isset($Status['currentTime'])) {
+                        if (isset($Status[\Cast\Device\VariableIdent::CurrentTime])) {
                             if ($this->DurationRAW) {
-                                $Value = (100 / $this->DurationRAW) * $Status['currentTime'];
-                                $this->SetValue('currentTime', $Value);
+                                $Value = (100 / $this->DurationRAW) * $Status[\Cast\Device\VariableIdent::CurrentTime];
+                                $this->SetValue(\Cast\Device\VariableIdent::CurrentTime, $Value);
                             } else {
-                                $this->SetValue('currentTime', 0);
+                                $this->SetValue(\Cast\Device\VariableIdent::CurrentTime, 0);
                             }
-                            $this->PositionRAW = $Status['currentTime'];
-                            $this->SetValue('position', \Cast\Device\TimeConvert::ConvertSeconds($Status['currentTime']));
-                            if ($this->ReadPropertyBoolean('enableRawPosition')) {
-                                $this->SetValue('positionRaw', $Status['currentTime']);
+                            $this->PositionRAW = $Status[\Cast\Device\VariableIdent::CurrentTime];
+                            $this->SetValue(\Cast\Device\VariableIdent::Position, \Cast\Device\TimeConvert::ConvertSeconds($Status[\Cast\Device\VariableIdent::CurrentTime]));
+                            if ($this->ReadPropertyBoolean(\Cast\Device\Property::EnableRawPosition)) {
+                                $this->SetValue(\Cast\Device\VariableIdent::PositionRaw, $Status[\Cast\Device\VariableIdent::CurrentTime]);
                             }
                         } else {
                             $this->PositionRAW = 0;
-                            $this->SetValue('position', '');
-                            if ($this->ReadPropertyBoolean('enableRawPosition')) {
-                                $this->SetValue('positionRaw', 0);
+                            $this->SetValue(\Cast\Device\VariableIdent::Position, '');
+                            if ($this->ReadPropertyBoolean(\Cast\Device\Property::EnableRawPosition)) {
+                                $this->SetValue(\Cast\Device\VariableIdent::PositionRaw, 0);
                             }
                         }
                         //queueData
                         if (isset($Status['repeatMode'])) {
-                            $this->SetValue(\Cast\Device\VariableIdents::RepeatMode, $Status['repeatMode']);
+                            $this->SetValue(\Cast\Device\VariableIdent::RepeatMode, $Status['repeatMode']);
                         }
                         //queueData:repeatMode | REPEAT_OFF
                         //queueData:shuffle | FALSE
@@ -1044,6 +1137,9 @@ class ChromeCast extends IPSModuleStrict
                         break;
                 }
                 break;
+            case \Cast\Urn::MultiZoneNamespace:
+
+                break;
             case \Cast\Urn::ReceiverNamespace:
                 switch ($Payload['type']) {
                     case \Cast\Commands::LaunchStatus:
@@ -1051,14 +1147,13 @@ class ChromeCast extends IPSModuleStrict
                     case \Cast\Commands::LaunchError:
                         break;
                     case \Cast\Commands::ReceiverStatus:
-
                         $Status = $Payload['status'];
 
                         if (isset($Status['volume']['level'])) {
-                            $this->SetValue(\Cast\Device\VariableIdents::Volume, (int) ($Status['volume']['level'] * 100));
+                            $this->SetValue(\Cast\Device\VariableIdent::Volume, (int) ($Status['volume']['level'] * 100));
                         }
                         if (isset($Status['volume']['muted'])) {
-                            $this->SetValue(\Cast\Device\VariableIdents::Muted, $Status['volume']['muted']);
+                            $this->SetValue(\Cast\Device\VariableIdent::Muted, $Status['volume']['muted']);
                         }
 
                         if (array_key_exists('applications', $Status)) {
@@ -1068,75 +1163,108 @@ class ChromeCast extends IPSModuleStrict
                                 $this->SetIcon($ActualApp['iconUrl']);
                                 unset($ActualApp['iconUrl']);
                             }
+                            $this->SetValue(\Cast\Device\VariableIdent::AppId, $ActualApp[\Cast\Device\VariableIdent::AppId]);
+                            /*
                             foreach ($ActualApp as $AppVariableIdent => $AppValue) {
                                 if (@$this->GetIDForIdent($AppVariableIdent)) {
                                     $this->SetValue($AppVariableIdent, $AppValue);
                                 }
-                            }
-
+                            }*/
+                            $this->isIdleScreen = $ActualApp['isIdleScreen'];
+                            if ($this->actualApp != $ActualApp[\Cast\Device\VariableIdent::AppId]) {
+                                $this->actualApp = $ActualApp[\Cast\Device\VariableIdent::AppId];
                             $this->ConnectToApp($ActualApp['transportId']);
                         }
-
+                        }
                         break;
                 }
+                break;
+            case \Cast\Urn::YouTube:
+                $this->screenId = $Payload['data']['screenId'] ?? '';
+                $this->deviceId = $Payload['data']['deviceId'] ?? '';
                 break;
             default:
                 break;
         }
     }
+
+    private function ClearMediaVariables(): void
+    {
+        $this->SetTimerInterval(\Cast\Device\Timer::ProgressState, 0);
+        $this->supportedMediaCommands = 0;
+        $this->PositionRAW = 0;
+        $this->isSeekable = false;
+        $this->DurationRAW = 0;
+        $this->MediaSessionId = 0;
+        $this->TransportId = '';
+        $this->SetValue(\Cast\Device\VariableIdent::Title, '');
+        $this->SetValue(\Cast\Device\VariableIdent::Artist, '');
+        $this->SetValue(\Cast\Device\VariableIdent::Collection, '');
+        $this->SetValue(\Cast\Device\VariableIdent::Duration, '');
+        if ($this->ReadPropertyBoolean(\Cast\Device\Property::EnableRawDuration)) {
+            $this->SetValue(\Cast\Device\VariableIdent::DurationRaw, 0);
+        }
+        $this->SetValue(\Cast\Device\VariableIdent::CurrentTime, 0);
+        $this->SetValue(\Cast\Device\VariableIdent::Position, '');
+        if ($this->ReadPropertyBoolean(\Cast\Device\Property::EnableRawPosition)) {
+            $this->SetValue(\Cast\Device\VariableIdent::PositionRaw, 0);
+        }
+        //$this->SetIcon('');
+        //$this->SetMediaImage('');
+        $this->updateControlsByMediaCommand(0);
+        $this->SetValue(\Cast\Device\VariableIdent::PlayerState, 1);
+    }
+
     private function updateControlsByMediaCommand(int $MediaCommand): void
     {
         if ($this->supportedMediaCommands == $MediaCommand) {
             return;
         }
         $this->supportedMediaCommands = $MediaCommand;
-        $Commands = \Cast\Commands::ListAvailableCommands($MediaCommand);
+        $Commands = \Cast\MediaCommands::ListAvailableCommands($MediaCommand);
         $Profile = '~PlaybackNoStop';
-        if (!in_array(\Cast\Commands::Pause, $Commands)) {
+        if (!in_array(\Cast\MediaCommands::Pause, $Commands)) {
             $Profile = '~PlaybackNoStop';
         } else {
-            if (in_array(\Cast\Commands::Next, $Commands)) {
+            if (in_array(\Cast\MediaCommands::Next, $Commands)) {
                 $Profile = '~PlaybackPreviousNext';
             } else {
                 $Profile = '~Playback';
             }
         }
+        $this->RegisterVariableInteger(\Cast\Device\VariableIdent::PlayerState, 'playerState', $Profile);
 
-        $this->RegisterVariableInteger(\Cast\Device\VariableIdents::PlayerState, 'playerState', $Profile);
-
-        if (in_array(\Cast\Commands::RepeatOne, $Commands)) {
-            $this->EnableAction(\Cast\Device\VariableIdents::RepeatMode);
+        /*
+        if (in_array(\Cast\MediaCommands::RepeatAll, $Commands) || in_array(\Cast\MediaCommands::RepeatOne, $Commands)) {
+            $this->EnableAction(\Cast\Device\VariableIdent::RepeatMode);
         } else {
-            $this->DisableAction(\Cast\Device\VariableIdents::RepeatMode);
+            $this->DisableAction(\Cast\Device\VariableIdent::RepeatMode);
         }
+         */
 
-        if (in_array(\Cast\Commands::Shuffle, $Commands)) {
-            $this->EnableAction(\Cast\Device\VariableIdents::Shuffle);
+        /*
+        if (in_array(\Cast\MediaCommands::Shuffle, $Commands)) {
+            $this->EnableAction(\Cast\Device\VariableIdent::Shuffle);
         } else {
-            $this->DisableAction(\Cast\Device\VariableIdents::Shuffle);
+            $this->DisableAction(\Cast\Device\VariableIdent::Shuffle);
         }
-        if (in_array(\Cast\Commands::Seek, $Commands)) {
+         */
+        if (in_array(\Cast\MediaCommands::Seek, $Commands)) {
             $this->isSeekable = true;
-            if ($this->ReadPropertyBoolean('enableRawPosition')) {
-                $this->EnableAction('positionRaw');
+            if ($this->ReadPropertyBoolean(\Cast\Device\Property::EnableRawPosition)) {
+                $this->EnableAction(\Cast\Device\VariableIdent::PositionRaw);
             }
-            $this->EnableAction('currentTime');
+            $this->EnableAction(\Cast\Device\VariableIdent::CurrentTime);
         } else {
             $this->isSeekable = false;
-            if ($this->ReadPropertyBoolean('enableRawPosition')) {
-                $this->DisableAction('positionRaw');
-            }
-            $this->DisableAction('currentTime');
+            if ($this->ReadPropertyBoolean(\Cast\Device\Property::EnableRawPosition)) {
+                $this->DisableAction(\Cast\Device\VariableIdent::PositionRaw);
         }
-
-        if (in_array(\Cast\Commands::RepeatAll, $Commands) || in_array(\Cast\Commands::RepeatOne, $Commands)) {
-            $this->EnableAction(\Cast\Device\VariableIdents::RepeatMode);
-        } else {
-            $this->DisableAction(\Cast\Device\VariableIdents::RepeatMode);
+            $this->DisableAction(\Cast\Device\VariableIdent::CurrentTime);
         }
-
         $this->SendDebug('COMMANDS', $Commands, 0);
     }
+
     private function DecodePacket(string $Data): void
     {
         $len = unpack('N', substr($Data, 0, 4))[1];

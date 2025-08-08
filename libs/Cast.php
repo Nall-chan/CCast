@@ -58,30 +58,38 @@ namespace Cast\Device
 
     class Property
     {
-        public const MediaSizeWidth = 'MediaSizeWidth';
-        public const AppIconSizeWidth = 'AppIconSizeWidth';
         public const Open = 'Open';
         public const Port = 'Port';
         public const Watchdog = 'Watchdog';
-        public const ConditionType = 'ConditionType';
         public const Interval = 'Interval';
+        public const ConditionType = 'ConditionType';
         public const WatchdogCondition = 'WatchdogCondition';
+        public const MediaSizeWidth = 'MediaSizeWidth';
+        public const AppIconSizeWidth = 'AppIconSizeWidth';
+        public const EnableRawDuration = 'enableRawDuration';
+        public const EnableRawPosition = 'enableRawPosition';
     }
 
-    class VariableIdents
+    class VariableIdent
     {
+        public const AppId = 'appId';
         public const Volume = 'level';
         public const Muted = 'muted';
-        public const AppId = 'appId';
         public const PlayerState = 'playerState';
         public const RepeatMode = 'repeatMode';
-        public const Shuffle = 'shuffleMode';
+        public const DurationRaw = 'durationRaw';
+        public const PositionRaw = 'positionRaw';
+        public const Duration = 'duration';
+        public const Position = 'position';
+        public const CurrentTime = 'currentTime';
+        public const Title = 'title';
+        public const Artist = 'artist';
+        public const Collection = 'collection';
 
-        public static $Variables = [
-            self::Volume => [],
-            self::Muted  => [],
-            self::AppId  => [],
-        ];
+        /**
+         * @todo Fehlt noch
+         */
+        public const Shuffle = 'shuffleMode';
     }
 
     class Timer
@@ -104,12 +112,25 @@ namespace Cast\Device
     }
 }
 
+namespace Cast\Youtube{
+    const BASE_URL = 'https://www.youtube.com/';
+    const LOUNGE_TOKEN_URL = BASE_URL . 'api/lounge/pairing/get_lounge_token_batch';
+
+}
+
+namespace Cast\YoutubeMusic{
+    const BASE_URL = 'https://music.youtube.com/';
+    const LOUNGE_TOKEN_URL = BASE_URL . 'api/lounge/pairing/get_lounge_token_batch';
+
+}
+
 namespace Cast
 {
     class Urn
     {
         //public const AuthNamespace = 'urn:x-cast:com.google.cast.tp.deviceauth';
         public const ConnectionNamespace = 'urn:x-cast:com.google.cast.tp.connection';
+
         public const HeartbeatNamespace = 'urn:x-cast:com.google.cast.tp.heartbeat';
         public const ReceiverNamespace = 'urn:x-cast:com.google.cast.receiver';
         public const MediaNamespace = 'urn:x-cast:com.google.cast.media';
@@ -121,7 +142,7 @@ namespace Cast
         public const DefaultMediaRender = 'urn:x-cast:com.google.cast.cac';
         // remoting
         // webrtc
-        //urn:x-cast:com.google.youtube.mdx
+        public const YouTube = 'urn:x-cast:com.google.youtube.mdx';
     }
 
     class Apps
@@ -136,24 +157,26 @@ namespace Cast
         public const GooglePodcast = '3DFCDBD1';
         public const Netflix = 'CA5E8412';
         public const ScreenMirroring = '674A0243';
+        public const Spotify = 'CC32E753';
         public const YouTube = '233637DE';
         public const YouTubeMusic = '2DB7CC49';
 
         public static $Apps =
-        [
-            self::Audible              => 'Audible',
-            self::CastBridge           => 'AirConnect & CastBridge',
-            self::Backdrop             => 'Backdrop',
-            self::ChromeMirroring      => 'Chrome Mirroring',
-            self::DefaultMediaReceiver => 'Default Media Receiver',
-            self::DisneyPlus           => 'Disney+',
-            self::GooglePhotos         => 'Google Photos',
-            self::GooglePodcast        => 'Google Podcast',
-            self::Netflix              => 'Netflix',
-            self::ScreenMirroring      => 'Screen Mirroring',
-            self::YouTube              => 'YouTube',
-            self::YouTubeMusic         => 'YouTube Music',
-        ];
+            [
+                self::Audible              => 'Audible',
+                self::CastBridge           => 'AirConnect & CastBridge',
+                self::Backdrop             => 'Backdrop',
+                self::ChromeMirroring      => 'Chrome Mirroring',
+                self::DefaultMediaReceiver => 'Default Media Receiver',
+                self::DisneyPlus           => 'Disney+',
+                self::GooglePhotos         => 'Google Photos',
+                self::GooglePodcast        => 'Google Podcast',
+                self::Netflix              => 'Netflix',
+                self::ScreenMirroring      => 'Screen Mirroring',
+                self::Spotify              => 'Spotify',
+                self::YouTube              => 'YouTube',
+                self::YouTubeMusic         => 'YouTube Music',
+            ];
 
         public static function getAllAppsAsProfileAssoziation(): array
         {
@@ -191,23 +214,8 @@ namespace Cast
         public const Answer = 'ANSWER';
 
         public const SetVolume = 'SET_VOLUME';
-        public const Play = 'PLAY';
-        public const Pause = 'PAUSE';
-        public const Seek = 'SEEK';
-        public const Stop = 'STOP';
-        public const Next = 'QUEUE_NEXT';
-        public const Prev = 'QUEUE_PREV';
-        public const QueueUpdate = 'QUEUE_UPDATE';
-        public const Shuffle = 'QUEUE_SHUFFLE';
-        public const SkipAd = 'SKIP_AD';
-        public const RepeatAll = 'QUEUE_REPEAT_ALL';
-        public const RepeatOne = 'QUEUE_REPEAT_ONE';
-        public const EditTracks = 'EDIT_TRACKS';
-        public const PlaybackRate = 'PLAYBACK_RATE';
-        public const Like = 'LIKE';
-        public const Dislike = 'DISLIKE';
-        public const Follow = 'FOLLOW';
-        public const Unfollow = 'UNFOLLOW';
+        public const UserAction = 'USER_ACTION';
+
         public const StreamTransfer = 'STREAM_TRANSFER';
         public const Lyrics = 'LYRICS';
 
@@ -222,46 +230,6 @@ namespace Cast
         public const InvalidRequest = 'INVALID_REQUEST';
         public const Presentation = 'PRESENTATION';
         public const Other = 'OTHER';
-
-        public static $MediaCommands = [
-            1 => self::Pause,
-            2 => self::Seek,
-            //4 => STREAM_VOLUME,
-            //8 => STREAM_MUTE,
-            64   => self::Next,
-            128  => self::Prev,
-            256  => self::Shuffle,
-            512  => self::SkipAd,
-            1024 => self::RepeatAll,
-            2048 => self::RepeatOne,
-            //QUEUE_REPEAT: 3072,
-            4096 => self::EditTracks,
-            8192 => self::PlaybackRate,
-            //ALL_BASIC_MEDIA: 12303,
-            16384   => self::Like,
-            32768   => self::Dislike,
-            65536   => self::Follow,
-            131072  => self::Unfollow,
-            262144  => self::StreamTransfer,
-            524288  => self::Lyrics,
-        ];
-
-        public static function ListAvailableCommands(int $Available): array
-        {
-            $Commands = [];
-            foreach (self::$MediaCommands as $CommandInt => $CommandValue) {
-                if (self::isCommandAvailable($Available, $CommandInt)) {
-                    $Commands[] = $CommandValue;
-                }
-            }
-            return $Commands;
-        }
-
-        public static function isCommandAvailable(int $Available, int $Command): bool
-        {
-            return ($Command & $Available) == $Command;
-            //return self::$MediaCommands[]
-        }
 
         /*
             { TEXT: "TEXT", AUDIO: "AUDIO", VIDEO: "VIDEO" });
@@ -308,7 +276,67 @@ namespace Cast
             return ['type' => $Command];
         }
     }
+    class MediaCommands
+    {
+        public const Play = 'PLAY';
+        public const Pause = 'PAUSE';
+        public const Stop = 'STOP';
+        public const Next = 'QUEUE_NEXT';
+        public const Prev = 'QUEUE_PREV';
+        public const Seek = 'SEEK';
 
+        public const QueueUpdate = 'QUEUE_UPDATE';
+        public const Like = 'LIKE';
+        public const Dislike = 'DISLIKE';
+        public const Follow = 'FOLLOW';
+        public const Unfollow = 'UNFOLLOW';
+        //public const Shuffle = 'QUEUE_SHUFFLE';
+        //public const SkipAd = 'SKIP_AD';
+        //public const RepeatAll = 'QUEUE_REPEAT_ALL';
+        //public const RepeatOne = 'QUEUE_REPEAT_ONE';
+        //public const EditTracks = 'EDIT_TRACKS';
+        //public const PlaybackRate = 'PLAYBACK_RATE';
+
+        public static $MediaCommands = [
+            1 => self::Pause,
+            2 => self::Seek,
+            //4 => STREAM_VOLUME,
+            //8 => STREAM_MUTE,
+            64   => self::Next,
+            128  => self::Prev,
+            //256  => self::Shuffle,
+            //512  => self::SkipAd,
+            //1024 => self::RepeatAll,
+            //2048 => self::RepeatOne,
+            //QUEUE_REPEAT: 3072,
+            //4096 => self::EditTracks,
+            //8192 => self::PlaybackRate,
+            //ALL_BASIC_MEDIA: 12303,
+            16384   => self::Like,
+            32768   => self::Dislike,
+            65536   => self::Follow,
+            131072  => self::Unfollow,
+            //262144  => self::StreamTransfer,
+            //524288  => self::Lyrics,
+        ];
+
+        public static function ListAvailableCommands(int $Available): array
+        {
+            $Commands = [];
+            foreach (self::$MediaCommands as $CommandInt => $CommandValue) {
+                if (self::isCommandAvailable($Available, $CommandInt)) {
+                    $Commands[] = $CommandValue;
+                }
+            }
+            return $Commands;
+        }
+
+        public static function isCommandAvailable(int $Available, int $Command): bool
+        {
+            return ($Command & $Available) == $Command;
+            //return self::$MediaCommands[]
+        }
+    }
     class PlayerState
     {
         public const Idle = 'IDLE';
@@ -328,20 +356,20 @@ namespace Cast
          */
 
         public static $StateToInt =
-        [
-            self::Idle              => 1,
-            self::Play              => 2,
-            self::Pause             => 3,
-        ];
+            [
+                self::Idle              => 1,
+                self::Play              => 2,
+                self::Pause             => 3,
+            ];
 
         public static $IntToAction =
-        [
-            0 => \Cast\Commands::Prev,
-            1 => \Cast\Commands::Stop,
-            2 => \Cast\Commands::Play,
-            3 => \Cast\Commands::Pause,
-            4 => \Cast\Commands::Next
-        ];
+            [
+                0 => \Cast\MediaCommands::Prev,
+                1 => \Cast\MediaCommands::Stop,
+                2 => \Cast\MediaCommands::Play,
+                3 => \Cast\MediaCommands::Pause,
+                4 => \Cast\MediaCommands::Next
+            ];
     }
 
     class Payload
@@ -548,7 +576,8 @@ namespace Cast
                 'ReceiverId'  => $this->Message->getReceiverId(),
                 'Urn'         => $this->Message->getUrn(),
                 'PayloadType' => $this->Message->getPayloadType(),
-                'Payload'     => ($Payload[0] != '{') ? $Payload : json_decode($Payload, true)
+                'Payload'     => $Payload, //($Payload[0] != '{') ? $Payload : json_decode($Payload, true)
+                '-------'     => '------------------------------'
             ];
         }
 
@@ -560,7 +589,7 @@ namespace Cast
         public function getPayload(): ?array
         {
             $Payload = $this->Message->getPayload();
-            return ($Payload != '') ? json_decode($Payload, true) : null;
+            return ($Payload != '') ? (($Payload[0] != '{') ? $Payload : json_decode($Payload, true)) : '';
         }
 
         public function getSourceId(): string
