@@ -1,71 +1,45 @@
-# Bosch SHC Discovery
+# Chrome Cast Discovery   <!-- omit in toc -->
 Beschreibung des Moduls.
 
-### Inhaltsverzeichnis
+### Inhaltsverzeichnis   <!-- omit in toc -->
 
-- [Bosch SHC Discovery](#bosch-shc-discovery)
-    - [Inhaltsverzeichnis](#inhaltsverzeichnis)
-    - [1. Funktionsumfang](#1-funktionsumfang)
-    - [2. Voraussetzungen](#2-voraussetzungen)
-    - [3. Software-Installation](#3-software-installation)
-    - [4. Einrichten der Instanzen in IP-Symcon](#4-einrichten-der-instanzen-in-ip-symcon)
-    - [5. Statusvariablen und Profile](#5-statusvariablen-und-profile)
-      - [Statusvariablen](#statusvariablen)
-      - [Profile](#profile)
-    - [6. WebFront](#6-webfront)
-    - [7. PHP-Befehlsreferenz](#7-php-befehlsreferenz)
+- [1. Funktionsumfang](#1-funktionsumfang)
+- [2. Voraussetzungen](#2-voraussetzungen)
+- [3. Software-Installation](#3-software-installation)
+- [4. Einrichten der Instanzen in IP-Symcon](#4-einrichten-der-instanzen-in-ip-symcon)
+- [5. Statusvariablen](#5-statusvariablen)
+- [6. Visualisierung](#6-visualisierung)
+- [7. PHP-Befehlsreferenz](#7-php-befehlsreferenz)
 
-### 1. Funktionsumfang
+## 1. Funktionsumfang
 
 *
 
-### 2. Voraussetzungen
+## 2. Voraussetzungen
 
-- IP-Symcon ab Version 6.0
+- IP-Symcon ab Version 8.1
 
-### 3. Software-Installation
+## 3. Software-Installation
 
-* Über den Module Store das 'Bosch SHC Configurator'-Modul installieren.
-* Alternativ über das Module Control folgende URL hinzufügen
+* Über den Module Store das 'Chrome Cast'-Modul installieren.
 
-### 4. Einrichten der Instanzen in IP-Symcon
+## 4. Einrichten der Instanzen in IP-Symcon
 
- Unter 'Instanz hinzufügen' kann das 'Bosch SHC Configurator'-Modul mithilfe des Schnellfilters gefunden werden.  
+ Unter 'Instanz hinzufügen' kann das 'Chrome Cast Discovery'-Modul mithilfe des Schnellfilters gefunden werden.  
 	- Weitere Informationen zum Hinzufügen von Instanzen in der [Dokumentation der Instanzen](https://www.symcon.de/service/dokumentation/konzepte/instanzen/#Instanz_hinzufügen)
 
 __Konfigurationsseite__:
 
-Name     | Beschreibung
--------- | ------------------
-         |
-         |
 
-### 5. Statusvariablen und Profile
 
-Die Statusvariablen/Kategorien werden automatisch angelegt. Das Löschen einzelner kann zu Fehlfunktionen führen.
+## 5. Statusvariablen
 
-#### Statusvariablen
+Keine Statusvariablen verfügbar.  
 
-Name   | Typ     | Beschreibung
------- | ------- | ------------
-       |         |
-       |         |
+## 6. Visualisierung
 
-#### Profile
+Keine Visualisierung verfügbar.  
 
-Name   | Typ
------- | -------
-       |
-       |
+## 7. PHP-Befehlsreferenz
 
-### 6. WebFront
-
-Die Funktionalität, die das Modul im WebFront bietet.
-
-### 7. PHP-Befehlsreferenz
-
-`boolean BSHC_BeispielFunktion(integer $InstanzID);`
-Erklärung der Funktion.
-
-Beispiel:
-`BSHC_BeispielFunktion(12345);`
+Keine Instanz-Funktionen verfügbar.  

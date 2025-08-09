@@ -32,7 +32,7 @@
             "Title": "Titel",
             "Artist": "Künstler",
             "Collection": "Sammlung",
-            "Could not connect to TCP-Server": "Konnte nicht mir TCP-Server verbinden",
+            "Could not connect to TCP-Server": "Konnte nicht mit TCP-Server verbinden",
             "No media playback active": "Keine Medienwiedergabe aktiv",
             "Media playback not seekable": "Medienwiedergabe nicht durchsuchbar",
             "ReplyCMsgPayload is locked": "ReplyCMsgPayload ist gesperrt",

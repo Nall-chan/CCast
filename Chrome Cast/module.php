@@ -52,13 +52,10 @@ class ChromeCast extends IPSModuleStrict
         \Cast\InstanceStatus::RegisterParent as IORegisterParent;
         \Cast\InstanceStatus::RequestAction as IORequestAction;
     }
-
     public function Create(): void
     {
         //Never delete this line!
         parent::Create();
-
-        $this->RequireParent(\Cast\IO\GUID);
         $this->ParentID = 0;
         $this->Host = '';
         $this->Buffer = '';
@@ -96,6 +93,11 @@ class ChromeCast extends IPSModuleStrict
         parent::Destroy();
     }
 
+    public function GetCompatibleParents(): string
+    {
+        return '{"type": "require", "moduleIDs": ["' . \Cast\IO\GUID . '"]}';
+    }
+
     public function ApplyChanges(): void
     {
         //Never delete this line!
@@ -104,7 +106,6 @@ class ChromeCast extends IPSModuleStrict
         $this->RegisterMessage($this->InstanceID, FM_DISCONNECT);
         $this->RegisterMessage($this->InstanceID, IM_CHANGESTATUS);
 
-        $this->ParentID = 0;
         $this->supportedMediaCommands = 0;
         $this->Buffer = '';
         $this->RequestId = 1;
@@ -133,7 +134,8 @@ class ChromeCast extends IPSModuleStrict
 
         $this->RegisterVariableInteger(\Cast\Device\VariableIdent::PlayerState, $this->Translate('Player State'), '~Playback', ++$i);
         $this->EnableAction(\Cast\Device\VariableIdent::PlayerState);
-        $this->RegisterVariableString(\Cast\Device\VariableIdent::RepeatMode, $this->Translate('Repeat'), '', ++$i);
+
+        //$this->RegisterVariableString(\Cast\Device\VariableIdent::RepeatMode, $this->Translate('Repeat'), '', ++$i);
 
         if ($this->ReadPropertyBoolean(\Cast\Device\Property::EnableRawDuration)) {
             $this->RegisterVariableInteger(\Cast\Device\VariableIdent::DurationRaw, $this->Translate('Duration in seconds'), '', ++$i);
@@ -181,7 +183,10 @@ class ChromeCast extends IPSModuleStrict
             $this->IOChangeState(IS_INACTIVE);
             return;
         }
-
+        if ($this->Host == '') {
+            $this->IOChangeState(IS_INACTIVE);
+            return;
+        }
         // Keine Verbindung erzwingen wenn Host offline ist
         $Open = $this->CheckCondition();
         if ($Open) {
@@ -189,6 +194,7 @@ class ChromeCast extends IPSModuleStrict
                 echo $this->Translate('Could not connect to TCP-Server');
                 $Open = false;
             }
+
         }
         if (!$Open) {
             IPS_SetProperty($ParentID, \Cast\IO\Property::Open, false);
@@ -343,9 +349,11 @@ class ChromeCast extends IPSModuleStrict
             case \Cast\Device\VariableIdent::PlayerState:
                 $this->SetPlayerState(\Cast\PlayerState::$IntToAction[(int) $Value]);
                 break;
+                /*
             case \Cast\Device\VariableIdent::RepeatMode:
                 $this->SetRepeat($Value);
                 break;
+                 */
             case \Cast\Device\Timer::ProgressState:
                 if ($this->DurationRAW) {
                     if ($this->PositionRAW < $this->DurationRAW) {
@@ -481,7 +489,7 @@ class ChromeCast extends IPSModuleStrict
         }
         return false;
     }
-
+    /*
     public function SetRepeat(string $Mode): bool
     {
         if (!$this->MediaSessionId) {
@@ -498,7 +506,7 @@ class ChromeCast extends IPSModuleStrict
         }
         return false;
     }
-
+     */
     public function SetLike(bool $Liked): bool
     {
         $RequestId = $this->RequestId++;
@@ -688,6 +696,7 @@ class ChromeCast extends IPSModuleStrict
     protected function RegisterParent(): int
     {
         $ParentID = $this->IORegisterParent();
+
         if ($ParentID > 0) {
             $this->Host = IPS_GetProperty($ParentID, \Cast\IO\Property::Host);
         } else {
@@ -904,13 +913,6 @@ class ChromeCast extends IPSModuleStrict
 
     }
 
-    private function ConnectToApp(string $TransportId): void
-    {
-        //if ($this->TransportId != $TransportId) {
-        IPS_RunScriptText('IPS_Sleep(500);IPS_RequestAction(' . $this->InstanceID . ',"' . \Cast\Commands::Connect . '","' . $TransportId . '");');
-        //}
-    }
-
     private function Send(\Cast\CastMessage $CMsg, int $RequestId = 0): bool|array
     {
         if ($RequestId) {
@@ -947,7 +949,7 @@ class ChromeCast extends IPSModuleStrict
     /**
      * DecodeEvent
      *
-     * @todo Strings auf consts anpassen und decodieren weiter ausbauen
+     * @todo decodieren weiter ausbauen
      * @param  mixed $CMsg
      * @param  array $Payload
      * @return void
@@ -1069,11 +1071,6 @@ class ChromeCast extends IPSModuleStrict
                                     $this->SetValue(\Cast\Device\VariableIdent::Collection, '');
                                 }
                             }
-                            //metadata:title
-                            //metadata:artist
-                            //customData:mediaItem:title
-
-                            //metadata:images:0:url
                             if (isset($Media['metadata']['images'][0]['url'])) {
                                 $this->SetMediaImage($Media['metadata']['images'][0]['url']);
                             }
@@ -1122,12 +1119,17 @@ class ChromeCast extends IPSModuleStrict
                             }
                         }
                         //queueData
-                        if (isset($Status['repeatMode'])) {
+                        /*
+                        if (isset($Status['queueData']['repeatMode'])) {
+                            $this->SetValue(\Cast\Device\VariableIdent::RepeatMode, $Status['queueData']['repeatMode']);
+                        } elseif (isset($Status['repeatMode'])) {
                             $this->SetValue(\Cast\Device\VariableIdent::RepeatMode, $Status['repeatMode']);
+                        } else {
+                            $this->SetValue(\Cast\Device\VariableIdent::RepeatMode,'');
                         }
                         //queueData:repeatMode | REPEAT_OFF
                         //queueData:shuffle | FALSE
-
+                         */
                         //items
                         //items:0:media:duration
                         //items:0:media:metadata:title
@@ -1173,7 +1175,7 @@ class ChromeCast extends IPSModuleStrict
                             $this->isIdleScreen = $ActualApp['isIdleScreen'];
                             if ($this->actualApp != $ActualApp[\Cast\Device\VariableIdent::AppId]) {
                                 $this->actualApp = $ActualApp[\Cast\Device\VariableIdent::AppId];
-                            $this->ConnectToApp($ActualApp['transportId']);
+                                IPS_RunScriptText('IPS_Sleep(5);IPS_RequestAction(' . $this->InstanceID . ',"' . \Cast\Commands::Connect . '","' . ($ActualApp['transportId'] ?? $ActualApp['sessionId']) . '");');
                         }
                         }
                         break;

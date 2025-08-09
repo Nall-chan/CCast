@@ -153,6 +153,7 @@ namespace Cast
         public const ChromeMirroring = '0F5096E8';
         public const DefaultMediaReceiver = 'CC1AD845'; //'85CDB22F' old
         public const DisneyPlus = 'C3DE6BC2';
+        public const EurekaIdleScreen = 'EurekaIdleScreen'; //not connected to internet
         public const GooglePhotos = '96084372'; //no response on GetAppAvailability
         public const GooglePodcast = '3DFCDBD1';
         public const Netflix = 'CA5E8412';
@@ -169,6 +170,7 @@ namespace Cast
                 self::ChromeMirroring      => 'Chrome Mirroring',
                 self::DefaultMediaReceiver => 'Default Media Receiver',
                 self::DisneyPlus           => 'Disney+',
+                self::EurekaIdleScreen     => 'Idle Screen',
                 self::GooglePhotos         => 'Google Photos',
                 self::GooglePodcast        => 'Google Podcast',
                 self::Netflix              => 'Netflix',
