@@ -327,14 +327,12 @@ class ChromeCast extends IPSModuleStrict
                 $this->RequestState();
                 break;
             case \Cast\Commands::Connect:
+                $this->SetMediaImage('');
                 $this->Connect($Value);
-                if ($this->TransportId != $Value) {
-                    $this->TransportId = $Value;
                     if ($this->isIdleScreen) {
                         $this->RequestIdleState();
                     } else {
                     $this->RequestMediaState();
-                }
                 }
                 break;
             case \Cast\Device\VariableIdent::Volume:
@@ -540,7 +538,7 @@ class ChromeCast extends IPSModuleStrict
 
     public function LoadMediaURL(string $Url, string $contentType = 'video/mp4', bool $isLive = false): bool
     {
-        if ($this->actualApp != \Cast\Apps::DefaultMediaReceiver) {
+        if ($this->actualApp != \Cast\Apps::DefaultMediaReceiver || $this->TransportId == '') {
             if (!$this->LaunchApp(\Cast\Apps::DefaultMediaReceiver)) {
                 return false;
             }
@@ -568,7 +566,7 @@ class ChromeCast extends IPSModuleStrict
     }
     public function LoadMediaId(string $Id, string $contentType = 'video/mp4', bool $isLive = false): bool
     {
-        if ($this->actualApp != \Cast\Apps::DefaultMediaReceiver) {
+        if ($this->actualApp != \Cast\Apps::DefaultMediaReceiver || $this->TransportId == '') {
             if (!$this->LaunchApp(\Cast\Apps::DefaultMediaReceiver)) {
                 return false;
             }
@@ -600,6 +598,7 @@ class ChromeCast extends IPSModuleStrict
         $Payload = \Cast\Payload::makePayload(\Cast\Commands::Close);
         $CMsg = new \Cast\CastMessage([$this->InstanceID, $this->TransportId, \Cast\Urn::ConnectionNamespace, 0, $Payload]);
         $Payload = $this->Send($CMsg);
+        $this->ClearMediaVariables();
         return $Payload;
     }
     public function RequestState(): bool
@@ -1165,17 +1164,21 @@ class ChromeCast extends IPSModuleStrict
                                 $this->SetIcon($ActualApp['iconUrl']);
                                 unset($ActualApp['iconUrl']);
                             }
-                            $this->SetValue(\Cast\Device\VariableIdent::AppId, $ActualApp[\Cast\Device\VariableIdent::AppId]);
-                            /*
-                            foreach ($ActualApp as $AppVariableIdent => $AppValue) {
-                                if (@$this->GetIDForIdent($AppVariableIdent)) {
-                                    $this->SetValue($AppVariableIdent, $AppValue);
+
+                            $found = array_search($ActualApp[\Cast\Device\VariableIdent::AppId], \Cast\Apps::$Apps);
+                            if ($found !== false) {
+                                $ActualApp[\Cast\Device\VariableIdent::AppId] = $found;
                                 }
-                            }*/
+                            $this->SetValue(\Cast\Device\VariableIdent::AppId, $ActualApp[\Cast\Device\VariableIdent::AppId]);
                             $this->isIdleScreen = $ActualApp['isIdleScreen'];
                             if ($this->actualApp != $ActualApp[\Cast\Device\VariableIdent::AppId]) {
                                 $this->actualApp = $ActualApp[\Cast\Device\VariableIdent::AppId];
-                                IPS_RunScriptText('IPS_Sleep(5);IPS_RequestAction(' . $this->InstanceID . ',"' . \Cast\Commands::Connect . '","' . ($ActualApp['transportId'] ?? $ActualApp['sessionId']) . '");');
+
+                            }
+                            $NewTransportId = ($ActualApp['transportId'] ?? $ActualApp['sessionId']);
+                            if ($this->TransportId != $NewTransportId) {
+                                $this->TransportId = $NewTransportId;
+                                IPS_RunScriptText('IPS_Sleep(5);IPS_RequestAction(' . $this->InstanceID . ',"' . \Cast\Commands::Connect . '","' . $this->TransportId . '");');
                         }
                         }
                         break;
@@ -1301,14 +1304,14 @@ class ChromeCast extends IPSModuleStrict
     }
 
     /**
-     * Wartet auf eine Antwort einer Anfrage an den LMS.
+     * Wartet auf eine Antwort einer Anfrage
      *
      * @param int $RequestId
      * @return array|false Enthält ein Array mit den Daten der Antwort. False bei einem Timeout
      */
     private function WaitForResponse(int $RequestId): false|array
     {
-        $millis = microtime(true) + 5;
+        $millis = microtime(true) + 10;
         do {
             $Buffer = $this->ReplyCMsgPayload;
             if (!array_key_exists($RequestId, $Buffer)) {

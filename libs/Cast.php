@@ -147,6 +147,7 @@ namespace Cast
 
     class Apps
     {
+        public const AndroidNativeApp = 'AndroidNativeApp';
         public const Audible = '25456794'; //no response on GetAppAvailability
         public const Backdrop = 'E8C28D3C';
         public const CastBridge = '46C1A819';
@@ -165,8 +166,8 @@ namespace Cast
         public static $Apps =
             [
                 self::Audible              => 'Audible',
-                self::CastBridge           => 'AirConnect & CastBridge',
                 self::Backdrop             => 'Backdrop',
+                self::CastBridge           => 'AirConnect & CastBridge',
                 self::ChromeMirroring      => 'Chrome Mirroring',
                 self::DefaultMediaReceiver => 'Default Media Receiver',
                 self::DisneyPlus           => 'Disney+',
@@ -217,9 +218,6 @@ namespace Cast
 
         public const SetVolume = 'SET_VOLUME';
         public const UserAction = 'USER_ACTION';
-
-        public const StreamTransfer = 'STREAM_TRANSFER';
-        public const Lyrics = 'LYRICS';
 
         //??
         public const GetCapabilities = 'GET_CAPABILITIES';
@@ -283,43 +281,46 @@ namespace Cast
         public const Play = 'PLAY';
         public const Pause = 'PAUSE';
         public const Stop = 'STOP';
+        public const Seek = 'SEEK';
+        public const QueueUpdate = 'QUEUE_UPDATE';
+        public const StreamVolume = 'STREAM_VOLUME';  //check
+        public const StreamMute = 'STREAM_MUTE';  //check
         public const Next = 'QUEUE_NEXT';
         public const Prev = 'QUEUE_PREV';
-        public const Seek = 'SEEK';
-
-        public const QueueUpdate = 'QUEUE_UPDATE';
+        public const Shuffle = 'QUEUE_SHUFFLE';
+        public const SkipAd = 'SKIP_AD';  //check
+        public const RepeatAll = 'QUEUE_REPEAT_ALL';
+        public const RepeatOne = 'QUEUE_REPEAT_ONE';
+        public const EditTracks = 'INBAND_TRACK_ADDED';  //check
+        public const PlaybackRate = 'PLAYBACK_RATE';  //check SET_PLAYBACK_RATE
         public const Like = 'LIKE';
         public const Dislike = 'DISLIKE';
         public const Follow = 'FOLLOW';
         public const Unfollow = 'UNFOLLOW';
-        //public const Shuffle = 'QUEUE_SHUFFLE';
-        //public const SkipAd = 'SKIP_AD';
-        //public const RepeatAll = 'QUEUE_REPEAT_ALL';
-        //public const RepeatOne = 'QUEUE_REPEAT_ONE';
+        public const StreamTransfer = 'STREAM_TRANSFER';
+        public const Lyrics = 'LYRICS';
+
         //public const EditTracks = 'EDIT_TRACKS';
-        //public const PlaybackRate = 'PLAYBACK_RATE';
 
         public static $MediaCommands = [
-            1 => self::Pause,
-            2 => self::Seek,
-            //4 => STREAM_VOLUME,
-            //8 => STREAM_MUTE,
-            64   => self::Next,
-            128  => self::Prev,
-            //256  => self::Shuffle,
-            //512  => self::SkipAd,
-            //1024 => self::RepeatAll,
-            //2048 => self::RepeatOne,
-            //QUEUE_REPEAT: 3072,
-            //4096 => self::EditTracks,
-            //8192 => self::PlaybackRate,
-            //ALL_BASIC_MEDIA: 12303,
+            1       => self::Pause,
+            2       => self::Seek,
+            4       => self::StreamVolume,
+            8       => self::StreamMute,
+            64      => self::Next,
+            128     => self::Prev,
+            256     => self::Shuffle,
+            512     => self::SkipAd,
+            1024    => self::RepeatAll,
+            2048    => self::RepeatOne,
+            4096    => self::EditTracks,
+            8192    => self::PlaybackRate,
             16384   => self::Like,
             32768   => self::Dislike,
             65536   => self::Follow,
             131072  => self::Unfollow,
-            //262144  => self::StreamTransfer,
-            //524288  => self::Lyrics,
+            262144  => self::StreamTransfer,
+            524288  => self::Lyrics,
         ];
 
         public static function ListAvailableCommands(int $Available): array

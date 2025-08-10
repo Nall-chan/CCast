@@ -111,7 +111,7 @@
         }
     ],
     "actions": [
-                {
+        {
             "type": "Button",
             "caption": "Request state",
             "onClick": "CCAST_RequestState($id);"
