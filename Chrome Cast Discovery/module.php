@@ -57,9 +57,6 @@ class ChromeCastDiscovery extends IPSModuleStrict
                         'configuration'    => [
                             \Cast\Device\Property::Open             => true,
                             \Cast\Device\Property::Port             => $Device['port']
-                            \Cast\Device\Property::Watchdog         => true,
-                            \Cast\Device\Property::Interval         => 5,
-                            \Cast\Device\Property::ConditionType    => 0
                         ]
                     ],
                     [

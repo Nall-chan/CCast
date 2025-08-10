@@ -74,7 +74,7 @@ class ChromeCast extends IPSModuleStrict
         $this->isIdleScreen = true;
         $this->RegisterPropertyBoolean(\Cast\Device\Property::Open, false);
         $this->RegisterPropertyInteger(\Cast\Device\Property::Port, 8009);
-        $this->RegisterPropertyBoolean(\Cast\Device\Property::Watchdog, false);
+        $this->RegisterPropertyBoolean(\Cast\Device\Property::Watchdog, true);
         $this->RegisterPropertyInteger(\Cast\Device\Property::Interval, 5);
         $this->RegisterPropertyInteger(\Cast\Device\Property::ConditionType, 0);
         $this->RegisterPropertyString(\Cast\Device\Property::WatchdogCondition, '');
