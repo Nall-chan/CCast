@@ -24,6 +24,8 @@ eval('declare(strict_types=1);namespace Cast {?>' . file_get_contents(__DIR__ . 
  * @property string $screenId // mdxSessionStatus
  * @property string $deviceId // mdxSessionStatus
  * @property int $MediaSessionId //actual MediaSession
+ * @property string $MediaUrl
+ * @property string $AppIconUrl
  * @property float $PositionRAW
  * @property bool $isSeekable
  * @property float $DurationRAW
@@ -66,6 +68,8 @@ class ChromeCast extends IPSModuleStrict
         $this->screenId = '';
         $this->deviceId = '';
         $this->MediaSessionId = 0;
+        $this->MediaUrl = '';
+        $this->AppIconUrl = '';
         $this->PositionRAW = 0;
         $this->isSeekable = false;
         $this->DurationRAW = 0;
@@ -85,6 +89,10 @@ class ChromeCast extends IPSModuleStrict
         $this->RegisterTimer(\Cast\Device\Timer::ProgressState, 0, 'IPS_RequestAction(' . $this->InstanceID . ',"' . \Cast\Device\Timer::ProgressState . '",true);');
         $this->RegisterTimer(\Cast\Device\Timer::KeepAlive, 0, 'IPS_RequestAction(' . $this->InstanceID . ',"' . \Cast\Device\Timer::KeepAlive . '",true);');
         $this->RegisterTimer(\Cast\Device\Timer::Watchdog, 0, 'IPS_RequestAction(' . $this->InstanceID . ',"' . \Cast\Device\Timer::Watchdog . '",true);');
+
+        if (IPS_GetObject($this->InstanceID)['ObjectIcon'] == '') {
+            IPS_SetIcon($this->InstanceID, 'screencast');
+        }
     }
 
     public function Destroy(): void
@@ -114,6 +122,8 @@ class ChromeCast extends IPSModuleStrict
         $this->TransportId = '';
         $this->screenId = '';
         $this->deviceId = '';
+        $this->MediaUrl = '';
+        $this->AppIconUrl = '';
         $this->PositionRAW = 0;
         $this->isSeekable = false;
         $this->DurationRAW = 0;
@@ -166,12 +176,13 @@ class ChromeCast extends IPSModuleStrict
 
         $ParentID = $this->RegisterParent();
 
-        // Nie öffnen
+        // Open auf false konfiguriert -> CS nie öffnen bzw. zwangsweise schließen
         if (!$this->ReadPropertyBoolean(\Cast\Device\Property::Open)) {
-            $this->StatusIsChanging = false;
             if ($ParentID > 0) {
+                //$this->StatusIsChanging = false;
+                // Jetzt den CS schließen
                 IPS_SetProperty($ParentID, \Cast\IO\Property::Open, false);
-                @IPS_ApplyChanges($ParentID);
+                @IPS_ApplyChanges($ParentID); // Diese Instanz reagiert auf die Änderung des CS über die MessageSink
             } else {
                 $this->IOChangeState(IS_INACTIVE);
             }
@@ -183,22 +194,23 @@ class ChromeCast extends IPSModuleStrict
             $this->IOChangeState(IS_INACTIVE);
             return;
         }
+        // Oder Parent ohne konfigurierten Host
         if ($this->Host == '') {
             $this->IOChangeState(IS_INACTIVE);
             return;
         }
-        // Keine Verbindung erzwingen wenn Host offline ist
+        // Prüfe ob Watchdog konfiguriert & Condition gegeben ist
         $Open = $this->CheckCondition();
         if ($Open) {
-            if (!$this->CheckPort()) {
+            if (!$this->CheckPort()) { // Keine Verbindung über CS erzwingen wenn Host offline ist
                 echo $this->Translate('Could not connect to TCP-Server');
                 $Open = false;
             }
-
         }
+        // Jetzt den CS passend konfigurieren bzw. öffnen/schließen
         if (!$Open) {
             IPS_SetProperty($ParentID, \Cast\IO\Property::Open, false);
-            @IPS_ApplyChanges($ParentID);
+            @IPS_ApplyChanges($ParentID); // Diese Instanz reagiert auf die Änderung des CS über die MessageSink
             $this->SetWatchdogTimer(true);
             return;
         }
@@ -211,7 +223,7 @@ class ChromeCast extends IPSModuleStrict
             IPS_SetProperty($ParentID, \Cast\IO\Property::Open, true);
         }
 
-        @IPS_ApplyChanges($ParentID);
+        @IPS_ApplyChanges($ParentID); // Diese Instanz reagiert auf die Änderung des CS über die MessageSink
         return;
     }
 
@@ -246,7 +258,7 @@ class ChromeCast extends IPSModuleStrict
                         case IS_EBASE + 1: //ERROR connection lost
                         case IS_INACTIVE:
                             $this->SetTimerInterval(\Cast\Device\Timer::KeepAlive, 0);
-                            $this->SetTimerInterval(\Cast\Device\Timer::ProgressState, 0);
+                            //$this->SetTimerInterval(\Cast\Device\Timer::ProgressState, 0);
                             $this->SendDebug('IM_CHANGESTATUS', 'not active', 0);
                             $this->Buffer = '';
                             $this->RequestId = 1;
@@ -844,17 +856,17 @@ class ChromeCast extends IPSModuleStrict
             IPS_SetParent($MediaId, $this->InstanceID);
             IPS_SetIdent($MediaId, 'iconUrl');
             IPS_SetName($MediaId, 'App Icon');
-            IPS_SetPosition($MediaId, 3);
+            IPS_SetPosition($MediaId, 1);
             IPS_SetMediaCached($MediaId, true);
             $filename = 'media' . DIRECTORY_SEPARATOR . 'CCast_iconUrl_' . $this->InstanceID . '.png';
             IPS_SetMediaFile($MediaId, $filename, false);
             $this->SendDebug('Create Media', $filename, 0);
         }
+        $Size = $this->ReadPropertyInteger(\Cast\Device\Property::AppIconSizeWidth);
         if ($iconUrl === '') {
-            //todo umrechnung fehlt
-            $MediaRAW = file_get_contents(__DIR__ . DIRECTORY_SEPARATOR . 'imgs' . DIRECTORY_SEPARATOR . 'no_image.png');
+            $MediaRAW = file_get_contents(__DIR__ . DIRECTORY_SEPARATOR . 'imgs' . DIRECTORY_SEPARATOR . 'no_app_image.png');
+            $MediaRAW = $this->ResizeImage($MediaRAW, $Size, 'png');
         } else {
-            $Size = $this->ReadPropertyInteger(\Cast\Device\Property::AppIconSizeWidth);
             $Found = strrpos($iconUrl, '=');
             if ($Found !== false) {
                 $iconUrl = substr($iconUrl, 0, $Found);
@@ -875,22 +887,27 @@ class ChromeCast extends IPSModuleStrict
             IPS_SetParent($MediaId, $this->InstanceID);
             IPS_SetIdent($MediaId, 'mediaUrl');
             IPS_SetName($MediaId, 'Media');
-            IPS_SetPosition($MediaId, 3);
+            IPS_SetPosition($MediaId, 13);
             IPS_SetMediaCached($MediaId, true);
             $filename = 'media' . DIRECTORY_SEPARATOR . 'CCast_mediaUrl_' . $this->InstanceID . '.jpg';
             IPS_SetMediaFile($MediaId, $filename, false);
             $this->SendDebug('Create Media', $filename, 0);
         }
+        $Size = $this->ReadPropertyInteger(\Cast\Device\Property::MediaSizeWidth);
         if ($MediaUrl === '') {
-            //todo umrechnung fehlt
-            $IconMediaId = @IPS_GetObjectIDByIdent('iconUrl', $this->InstanceID);
-            if (IPS_MediaExists($IconMediaId)) {
-                $MediaRAW = base64_decode(IPS_GetMediaContent($IconMediaId));
+            $iconUrl = $this->AppIconUrl;
+            if ($iconUrl == '') {
+                $MediaRAW = file_get_contents(__DIR__ . DIRECTORY_SEPARATOR . 'imgs' . DIRECTORY_SEPARATOR . 'nocover.png');
+                $MediaRAW = $this->ResizeImage($MediaRAW, $Size, 'png');
             } else {
-                $MediaRAW = file_get_contents(__DIR__ . DIRECTORY_SEPARATOR . 'imgs' . DIRECTORY_SEPARATOR . 'no_image.png');
+                $Found = strrpos($iconUrl, '=');
+                if ($Found !== false) {
+                    $iconUrl = substr($iconUrl, 0, $Found);
+                }
+                $iconUrl .= '=w' . $Size;
+                $MediaRAW = @file_get_contents($iconUrl);
             }
         } else {
-            $Size = $this->ReadPropertyInteger(\Cast\Device\Property::MediaSizeWidth);
             if (strpos($MediaUrl, 'googleusercontent')) {
                 $Found = strrpos($MediaUrl, '=');
                 if ($Found !== false) {
@@ -898,8 +915,9 @@ class ChromeCast extends IPSModuleStrict
                     $MediaUrl .= '=w' . $Size;
                 }
                 $MediaRAW = @file_get_contents($MediaUrl);
-            } else { // todo Bild laden und umrechnen
+            } else {
                 $MediaRAW = @file_get_contents($MediaUrl);
+                $MediaRAW = $this->ResizeImage($MediaRAW, $Size, substr($MediaUrl, -3));
             }
         }
 
@@ -911,11 +929,46 @@ class ChromeCast extends IPSModuleStrict
         }
 
     }
+    private function ResizeImage(string $ImageRaw, int $SizeWidth, string $Format = 'jpg'): string
+    {
+        $image = @imagecreatefromstring($ImageRaw);
+        if ($image !== false) {
+            $width = imagesx($image);
+            $height = imagesy($image);
+            $factor = 1;
+            if ($SizeWidth > 0) {
+                if ($width > $SizeWidth) {
+                    $factor = $width / $SizeWidth;
+                }
+            }
+            if ($factor != 1) {
+                $image = imagescale($image, (int) ($width / $factor), (int) ($height / $factor));
+            }
+            if ($Format == 'png') {
+                imagealphablending($image, false);
+                imagesavealpha($image, true);
+                ob_start();
+                @imagepng($image);
+                $ThumbRAW = ob_get_contents(); // read from buffer
+                ob_end_clean(); // delete buffer
+            } else {
+                ob_start();
+                @imagejpeg($image);
+                $ThumbRAW = ob_get_contents(); // read from buffer
+                ob_end_clean(); // delete buffer
 
+            }
+        }
+
+        return $ThumbRAW;
+    }
     private function Send(\Cast\CastMessage $CMsg, int $RequestId = 0): bool|array
     {
-        if ($RequestId) {
+        if ($CMsg->getUrn() != \Cast\Urn::HeartbeatNamespace) {
             $this->SendDebug('Send (' . $RequestId . ')', $CMsg->__debug(), 0);
+        }
+        if ($RequestId) {
+            //$this->SendDebug('Send (' . $RequestId . ')', $CMsg->__debug(), 0);
             $this->SendQueuePush($RequestId);
         }
         $result = $this->SendDataToParent(json_encode(['DataID' => '{79827379-F36E-4ADA-8A95-5F8D1DC92FA9}', 'Buffer' => bin2hex($CMsg->getMessage())]));
@@ -988,7 +1041,12 @@ class ChromeCast extends IPSModuleStrict
                         }
                         $Status = array_shift($Payload['status']);
                         if (isset($Status['mediaSessionId'])) {
+                            if ($this->MediaSessionId != $Status['mediaSessionId']) {
                             $this->MediaSessionId = $Status['mediaSessionId'];
+                                if (!array_key_exists('media', $Status)) {
+                                    IPS_RunscriptText('IPS_Sleep(1);CCAST_RequestMediaState(' . $this->InstanceID . ');');
+                                }
+                            }
                         } else {
                             $this->MediaSessionId = 0;
                         }
@@ -999,6 +1057,31 @@ class ChromeCast extends IPSModuleStrict
                                     $this->updateControlsByMediaCommand($Status['supportedMediaCommands']);
                                 }
                                 $this->SetValue(\Cast\Device\VariableIdent::PlayerState, \Cast\PlayerState::$StateToInt[$Status['playerState']]);
+                            }
+                            if ($Status['playerState'] == \Cast\PlayerState::Play) {
+                                $this->SetTimerInterval(\Cast\Device\Timer::ProgressState, 1000);
+                            } else {
+                                $this->SetTimerInterval(\Cast\Device\Timer::ProgressState, 0);
+                            }
+
+                        }
+                        if (isset($Status[\Cast\Device\VariableIdent::CurrentTime])) {
+                            if ($this->DurationRAW) {
+                                $Value = (100 / $this->DurationRAW) * $Status[\Cast\Device\VariableIdent::CurrentTime];
+                                $this->SetValue(\Cast\Device\VariableIdent::CurrentTime, $Value);
+                            } else {
+                                $this->SetValue(\Cast\Device\VariableIdent::CurrentTime, 0);
+                            }
+                            $this->PositionRAW = $Status[\Cast\Device\VariableIdent::CurrentTime];
+                            $this->SetValue(\Cast\Device\VariableIdent::Position, \Cast\Device\TimeConvert::ConvertSeconds($Status[\Cast\Device\VariableIdent::CurrentTime]));
+                            if ($this->ReadPropertyBoolean(\Cast\Device\Property::EnableRawPosition)) {
+                                $this->SetValue(\Cast\Device\VariableIdent::PositionRaw, $Status[\Cast\Device\VariableIdent::CurrentTime]);
+                            }
+                        } else {
+                            $this->PositionRAW = 0;
+                            $this->SetValue(\Cast\Device\VariableIdent::Position, '');
+                            if ($this->ReadPropertyBoolean(\Cast\Device\Property::EnableRawPosition)) {
+                                $this->SetValue(\Cast\Device\VariableIdent::PositionRaw, 0);
                             }
                         }
                         if (array_key_exists('media', $Status)) {
@@ -1070,10 +1153,23 @@ class ChromeCast extends IPSModuleStrict
                                     $this->SetValue(\Cast\Device\VariableIdent::Collection, '');
                                 }
                             }
-                            if (isset($Media['metadata']['images'][0]['url'])) {
-                                $this->SetMediaImage($Media['metadata']['images'][0]['url']);
+                            if (isset($Media['metadata']['images'])) {
+                                $Key = 0;
+                                if (isset($Media['metadata']['images'][0]['width'])) {
+                                    $Width = array_column($Media['metadata']['images'], 'width');
+                                    array_multisort($Width, SORT_ASC, SORT_NUMERIC, $Media['metadata']['images']);
+                                    $Size = $this->ReadPropertyInteger(\Cast\Device\Property::MediaSizeWidth);
+                                    foreach ($Width as $Key => $Value) {
+                                        if ($Value >= $Size) {
+                                            break;
+                                        }
+                                    }
+                                }
+                                if ($this->MediaUrl != $Media['metadata']['images'][$Key]['url']) {
+                                    $this->MediaUrl = $Media['metadata']['images'][$Key]['url'];
+                                    $this->SetMediaImage($Media['metadata']['images'][$Key]['url']);
+                                }
                             }
-
                             //customData:artists
                             //customData:title
 
@@ -1091,32 +1187,7 @@ class ChromeCast extends IPSModuleStrict
                                 }
                             }
                         }
-                        if (isset($Status['playerState'])) {
-                            if ($Status['playerState'] == 'PLAYING') {
-                                $this->SetTimerInterval(\Cast\Device\Timer::ProgressState, 1000);
-                            } else {
-                                $this->SetTimerInterval(\Cast\Device\Timer::ProgressState, 0);
-                            }
-                        }
-                        if (isset($Status[\Cast\Device\VariableIdent::CurrentTime])) {
-                            if ($this->DurationRAW) {
-                                $Value = (100 / $this->DurationRAW) * $Status[\Cast\Device\VariableIdent::CurrentTime];
-                                $this->SetValue(\Cast\Device\VariableIdent::CurrentTime, $Value);
-                            } else {
-                                $this->SetValue(\Cast\Device\VariableIdent::CurrentTime, 0);
-                            }
-                            $this->PositionRAW = $Status[\Cast\Device\VariableIdent::CurrentTime];
-                            $this->SetValue(\Cast\Device\VariableIdent::Position, \Cast\Device\TimeConvert::ConvertSeconds($Status[\Cast\Device\VariableIdent::CurrentTime]));
-                            if ($this->ReadPropertyBoolean(\Cast\Device\Property::EnableRawPosition)) {
-                                $this->SetValue(\Cast\Device\VariableIdent::PositionRaw, $Status[\Cast\Device\VariableIdent::CurrentTime]);
-                            }
-                        } else {
-                            $this->PositionRAW = 0;
-                            $this->SetValue(\Cast\Device\VariableIdent::Position, '');
-                            if ($this->ReadPropertyBoolean(\Cast\Device\Property::EnableRawPosition)) {
-                                $this->SetValue(\Cast\Device\VariableIdent::PositionRaw, 0);
-                            }
-                        }
+
                         //queueData
                         /*
                         if (isset($Status['queueData']['repeatMode'])) {
@@ -1159,12 +1230,12 @@ class ChromeCast extends IPSModuleStrict
 
                         if (array_key_exists('applications', $Status)) {
                             $ActualApp = array_shift($Status['applications']);
-
                             if (array_key_exists('iconUrl', $ActualApp)) {
+                                if ($this->AppIconUrl != $ActualApp['iconUrl']) {
+                                    $this->AppIconUrl = $ActualApp['iconUrl'];
                                 $this->SetIcon($ActualApp['iconUrl']);
-                                unset($ActualApp['iconUrl']);
                             }
-
+                            }
                             $found = array_search($ActualApp[\Cast\Device\VariableIdent::AppId], \Cast\Apps::$Apps);
                             if ($found !== false) {
                                 $ActualApp[\Cast\Device\VariableIdent::AppId] = $found;

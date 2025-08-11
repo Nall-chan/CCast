@@ -107,7 +107,7 @@
             "type": "NumberSpinner",
             "suffix": "px",
             "minimum": 60,
-            "maximum": 3000
+            "maximum": 512
         }
     ],
     "actions": [
