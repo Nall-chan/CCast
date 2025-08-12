@@ -341,6 +341,18 @@ namespace Cast
             //return self::$MediaCommands[]
         }
     }
+
+    class Queue
+    {
+        public const RepeatOff = 'REPEAT_OFF';
+        public const RepeatAll = 'REPEAT_ALL';
+        public const RepeatOne = 'REPEAT_ONE';
+        public static $MediaItemKeys = [
+            'contentUrl'  => '',
+            'streamType'  => 'BUFFERED',
+            'contentType' => 'video/mp4'
+        ];
+    }
     class PlayerState
     {
         public const Idle = 'IDLE';

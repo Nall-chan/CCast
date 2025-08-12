@@ -113,13 +113,23 @@
     "actions": [
         {
             "type": "Button",
+            "caption": "Request App Availability",
+            "onClick": "CCAST_GetAppAvailability($id);"
+        },
+        {
+            "type": "Button",
             "caption": "Request state",
             "onClick": "CCAST_RequestState($id);"
         },
         {
             "type": "Button",
-            "caption": "Request App Availability",
-            "onClick": "CCAST_GetAppAvailability($id);"
+            "caption": "Request media state",
+            "onClick": "CCAST_RequestMediaState($id);"
+        },
+        {
+            "type": "Button",
+            "caption": "Close app",
+            "onClick": "CCAST_CloseApp($id);"
         },
         {
             "type": "TestCenter"

@@ -142,7 +142,7 @@ class ChromeCast extends IPSModuleStrict
         $this->RegisterVariableBoolean(\Cast\Device\VariableIdent::Muted, $this->Translate('Muted'), '~Mute', ++$i);
         $this->EnableAction(\Cast\Device\VariableIdent::Muted);
 
-        $this->RegisterVariableInteger(\Cast\Device\VariableIdent::PlayerState, $this->Translate('Player State'), '~Playback', ++$i);
+        $this->RegisterVariableInteger(\Cast\Device\VariableIdent::PlayerState, $this->Translate('Player State'), '~PlaybackPreviousNextNoStop', ++$i);
         $this->EnableAction(\Cast\Device\VariableIdent::PlayerState);
 
         //$this->RegisterVariableString(\Cast\Device\VariableIdent::RepeatMode, $this->Translate('Repeat'), '', ++$i);
@@ -407,11 +407,7 @@ class ChromeCast extends IPSModuleStrict
         $Payload = \Cast\Payload::makePayload(\Cast\Commands::SetVolume, ['requestId'=>$RequestId, 'volume'=>['level'=>$Level]]);
         $CMsg = new \Cast\CastMessage([$this->InstanceID, 'receiver-0', \Cast\Urn::ReceiverNamespace, 0, $Payload]);
         $Payload = $this->Send($CMsg, $RequestId);
-        if ($Payload) {
-            $this->DecodeEvent($CMsg, $Payload);
-            return true;
-        }
-        return false;
+        return $Payload ? true : false;
     }
 
     public function SetMute(bool $Mute): bool
@@ -420,11 +416,7 @@ class ChromeCast extends IPSModuleStrict
         $Payload = \Cast\Payload::makePayload(\Cast\Commands::SetVolume, ['requestId'=>$RequestId, 'volume'=>['muted'=>$Mute]]);
         $CMsg = new \Cast\CastMessage([$this->InstanceID, 'receiver-0', \Cast\Urn::ReceiverNamespace, 0, $Payload]);
         $Payload = $this->Send($CMsg, $RequestId);
-        if ($Payload) {
-            $this->DecodeEvent($CMsg, $Payload);
-            return true;
-        }
-        return false;
+        return $Payload ? true : false;
     }
 
     public function LaunchApp(string $AppId): bool
@@ -433,11 +425,7 @@ class ChromeCast extends IPSModuleStrict
         $Payload = \Cast\Payload::makePayload(\Cast\Commands::Launch, ['requestId'=>$RequestId, 'appId'=>$AppId]);
         $CMsg = new \Cast\CastMessage([$this->InstanceID, 'receiver-0', \Cast\Urn::ReceiverNamespace, 0, $Payload]);
         $Payload = $this->Send($CMsg, $RequestId);
-        if ($Payload) {
-            $this->DecodeEvent($CMsg, $Payload);
-            return $AppId == $this->actualApp;
-        }
-        return false;
+        return $Payload ? true : false;
     }
 
     public function SetPlayerState(string $State): bool
@@ -461,11 +449,7 @@ class ChromeCast extends IPSModuleStrict
         $Payload = \Cast\Payload::makePayload($State, array_merge($Payload, ['requestId'=>$RequestId, 'mediaSessionId'=>$this->MediaSessionId]));
         $CMsg = new \Cast\CastMessage([$this->InstanceID, $this->TransportId, $Urn, 0, $Payload]);
         $Payload = $this->Send($CMsg, $RequestId);
-        if ($Payload) {
-            $this->DecodeEvent($CMsg, $Payload);
-            return true;
-        }
-        return false;
+        return $Payload ? true : false;
     }
 
     public function Seek(float $Time): bool
@@ -482,11 +466,7 @@ class ChromeCast extends IPSModuleStrict
         $Payload = \Cast\Payload::makePayload(\Cast\MediaCommands::Seek, ['currentTime'=>$Time, 'requestId'=>$RequestId, 'mediaSessionId'=>$this->MediaSessionId]);
         $CMsg = new \Cast\CastMessage([$this->InstanceID, $this->TransportId, \Cast\Urn::MediaNamespace, 0, $Payload]);
         $Payload = $this->Send($CMsg, $RequestId);
-        if ($Payload) {
-            $this->DecodeEvent($CMsg, $Payload);
-            return true;
-        }
-        return false;
+        return $Payload ? true : false;
     }
 
     public function SeekRelative(float $Time): bool
@@ -499,11 +479,7 @@ class ChromeCast extends IPSModuleStrict
         $Payload = \Cast\Payload::makePayload(\Cast\MediaCommands::Seek, ['relativeTime'=>$Time, 'requestId'=>$RequestId, 'mediaSessionId'=>$this->MediaSessionId]);
         $CMsg = new \Cast\CastMessage([$this->InstanceID, $this->TransportId, \Cast\Urn::MediaNamespace, 0, $Payload]);
         $Payload = $this->Send($CMsg, $RequestId);
-        if ($Payload) {
-            $this->DecodeEvent($CMsg, $Payload);
-            return true;
-        }
-        return false;
+        return $Payload ? true : false;
     }
     /*
     public function SetRepeat(string $Mode): bool
@@ -516,11 +492,7 @@ class ChromeCast extends IPSModuleStrict
         $Payload = \Cast\Payload::makePayload(\Cast\MediaCommands::QueueUpdate, ['repeatMode'=>$Mode, 'requestId'=>$RequestId, 'mediaSessionId'=>$this->MediaSessionId]);
         $CMsg = new \Cast\CastMessage([$this->InstanceID, $this->TransportId, \Cast\Urn::MediaNamespace, 0, $Payload]);
         $Payload = $this->Send($CMsg, $RequestId);
-        if ($Payload) {
-            $this->DecodeEvent($CMsg, $Payload);
-            return true;
-        }
-        return false;
+        return $Payload ? true : false;
     }
      */
     public function SetLike(bool $Liked): bool
@@ -530,11 +502,7 @@ class ChromeCast extends IPSModuleStrict
         //$CMsg = new \Cast\CastMessage([$this->InstanceID, $this->TransportId, \Cast\Urn::MediaNamespace, 0, $Payload]);
         $CMsg = new \Cast\CastMessage([$this->InstanceID, 'receiver-0', \Cast\Urn::ReceiverNamespace, 0, $Payload]);
         $Payload = $this->Send($CMsg, $RequestId);
-        if ($Payload) {
-            $this->DecodeEvent($CMsg, $Payload);
-            return true;
-        }
-        return false;
+        return $Payload ? true : false;
     }
 
     public function GetAppAvailability(): bool
@@ -547,14 +515,10 @@ class ChromeCast extends IPSModuleStrict
         $Payload = \Cast\Payload::makePayload(\Cast\Commands::GetAppAvailability, $Request);
         $CMsg = new \Cast\CastMessage([$this->InstanceID, 'receiver-0', \Cast\Urn::ReceiverNamespace, 0, $Payload]);
         $Payload = $this->Send($CMsg, $RequestId);
-        if ($Payload) {
-            $this->DecodeEvent($CMsg, $Payload);
-            return true;
-        }
-        return false;
+        return $Payload ? true : false;
     }
 
-    public function LoadMediaURL(string $Url, string $contentType = 'video/mp4', bool $isLive = false): bool
+    public function LoadMediaURL(string $Url, string $contentType, bool $isLive): bool
     {
         if ($this->actualApp != \Cast\Apps::DefaultMediaReceiver || $this->TransportId == '') {
             if (!$this->LaunchApp(\Cast\Apps::DefaultMediaReceiver)) {
@@ -576,13 +540,9 @@ class ChromeCast extends IPSModuleStrict
         $Payload = \Cast\Payload::makePayload(\Cast\Commands::Load, $Payload);
         $CMsg = new \Cast\CastMessage([$this->InstanceID, $this->TransportId, \Cast\Urn::MediaNamespace, 0, $Payload]);
         $Payload = $this->Send($CMsg, $RequestId);
-        if ($Payload) {
-            $this->DecodeEvent($CMsg, $Payload);
-            return true;
-        }
-        return false;
+        return $Payload ? true : false;
     }
-    public function LoadMediaId(string $Id, string $contentType = 'video/mp4', bool $isLive = false): bool
+    public function LoadMediaId(string $Id, string $contentType, bool $isLive): bool
     {
         if ($this->actualApp != \Cast\Apps::DefaultMediaReceiver || $this->TransportId == '') {
             if (!$this->LaunchApp(\Cast\Apps::DefaultMediaReceiver)) {
@@ -604,11 +564,38 @@ class ChromeCast extends IPSModuleStrict
         $Payload = \Cast\Payload::makePayload(\Cast\Commands::Load, $Payload);
         $CMsg = new \Cast\CastMessage([$this->InstanceID, $this->TransportId, \Cast\Urn::MediaNamespace, 0, $Payload]);
         $Payload = $this->Send($CMsg, $RequestId);
-        if ($Payload) {
-            $this->DecodeEvent($CMsg, $Payload);
-            return true;
+        return $Payload ? true : false;
+
         }
+    public function LoadMediaQueue(array $Items, bool $Repeat, int $StartIndex, bool $Autoplay): bool
+    {
+        if ($this->actualApp != \Cast\Apps::DefaultMediaReceiver || $this->TransportId == '') {
+            if (!$this->LaunchApp(\Cast\Apps::DefaultMediaReceiver)) {
         return false;
+            }
+            IPS_Sleep(1000);
+        }
+        $PayloadItems = [];
+        foreach ($Items as $Item) {
+            $PayloadItems[] = [
+                'media'=> array_merge(\Cast\Queue::$MediaItemKeys, $Item)
+            ];
+        }
+        $RequestId = $this->RequestId++;
+        $Payload = [
+            'queueData'=> [
+                'startIndex'      => $StartIndex,
+                'repeatMode'      => $Repeat ? \Cast\Queue::RepeatAll : \Cast\Queue::RepeatOff,
+                'autoplay'        => $Autoplay ? 1 : 0,
+                'items'           => $PayloadItems
+            ],
+            'requestId' => $RequestId
+        ];
+        $Payload = \Cast\Payload::makePayload(\Cast\Commands::Load, $Payload);
+        $CMsg = new \Cast\CastMessage([$this->InstanceID, $this->TransportId, \Cast\Urn::MediaNamespace, 0, $Payload]);
+        $Payload = $this->Send($CMsg, $RequestId);
+        return $Payload ? true : false;
+    }
 
     }
     public function CloseApp(): bool
@@ -627,11 +614,7 @@ class ChromeCast extends IPSModuleStrict
         $Payload = \Cast\Payload::makePayload(\Cast\Commands::GetStatus, ['requestId'=>$RequestId]);
         $CMsg = new \Cast\CastMessage([$this->InstanceID, 'receiver-0', \Cast\Urn::ReceiverNamespace, 0, $Payload]);
         $Payload = $this->Send($CMsg, $RequestId);
-        if ($Payload) {
-            $this->DecodeEvent($CMsg, $Payload);
-            return true;
-        }
-        return false;
+        return $Payload ? true : false;
     }
 
     public function RequestMediaState(): bool
@@ -649,15 +632,11 @@ class ChromeCast extends IPSModuleStrict
         $CMsg = new \Cast\CastMessage([$this->InstanceID, 'system-0', $Urn, 0, $Payload]);
          */
         $Payload = $this->Send($CMsg, $RequestId);
-        if ($Payload) {
-            $this->DecodeEvent($CMsg, $Payload);
-            return true;
-        }
         /*
             $this->SendDebug(__FUNCTION__,'Clear TransportId & MediaSessionId',0);
             $this->ClearMediaVariables();
          */
-        return false;
+        return $Payload ? true : false;
         }
 
     public function RequestIdleState(): void
@@ -675,11 +654,7 @@ class ChromeCast extends IPSModuleStrict
         $Payload = \Cast\Payload::makePayload($Command, array_merge($Payload, ['requestId'=>$RequestId]));
         $CMsg = new \Cast\CastMessage([$this->InstanceID, 'receiver-0', 'urn:x-cast:com.google.cast.' . $URN, 0, $Payload]);
         $Payload = $this->Send($CMsg, $RequestId);
-        if ($Payload) {
-            $this->DecodeEvent($CMsg, $Payload);
-            return true;
-        }
-        return false;
+        return $Payload ? true : false;
     }
 
     public function SendCommandToApp(string $URN, string $Command, array $Payload = []): bool
@@ -688,11 +663,7 @@ class ChromeCast extends IPSModuleStrict
         $Payload = \Cast\Payload::makePayload($Command, array_merge($Payload, ['requestId'=>$RequestId]));
         $CMsg = new \Cast\CastMessage([$this->InstanceID, $this->TransportId, 'urn:x-cast:com.google.' . $URN, 0, $Payload]);
         $Payload = $this->Send($CMsg, $RequestId);
-        if ($Payload) {
-            $this->DecodeEvent($CMsg, $Payload);
-            return true;
-        }
-        return false;
+        return $Payload ? true : false;
     }
 
     public function SendPing(): bool
@@ -879,7 +850,7 @@ class ChromeCast extends IPSModuleStrict
                 $iconUrl = substr($iconUrl, 0, $Found);
             }
             $iconUrl .= '=w' . $Size;
-            $MediaRAW = @file_get_contents($iconUrl);
+            $MediaRAW = @Sys_GetURLContentEx($iconUrl, ['Timeout'=>5000, 'VerifyPeer'=>false, 'VerifyHost'=>false]);
         }
         $this->SendDebug('Refresh IconUrl', $iconUrl, 0);
         IPS_SetMediaContent($MediaId, base64_encode($MediaRAW));
@@ -912,7 +883,7 @@ class ChromeCast extends IPSModuleStrict
                     $iconUrl = substr($iconUrl, 0, $Found);
                 }
                 $iconUrl .= '=w' . $Size;
-                $MediaRAW = @file_get_contents($iconUrl);
+                $MediaRAW = @Sys_GetURLContentEx($MediaUrl, ['Timeout'=>5000, 'VerifyPeer'=>false, 'VerifyHost'=>false]);
             }
         } else {
             if (strpos($MediaUrl, 'googleusercontent')) {
@@ -923,7 +894,7 @@ class ChromeCast extends IPSModuleStrict
                 }
                 $MediaRAW = @file_get_contents($MediaUrl);
             } else {
-                $MediaRAW = @file_get_contents($MediaUrl);
+                $MediaRAW = @Sys_GetURLContentEx($MediaUrl, ['Timeout'=>5000, 'VerifyPeer'=>false, 'VerifyHost'=>false]);
                 $MediaRAW = $this->ResizeImage($MediaRAW, $Size, substr($MediaUrl, -3));
             }
         }
@@ -978,8 +949,8 @@ class ChromeCast extends IPSModuleStrict
             //$this->SendDebug('Send (' . $RequestId . ')', $CMsg->__debug(), 0);
             $this->SendQueuePush($RequestId);
         }
-        $result = $this->SendDataToParent(json_encode(['DataID' => '{79827379-F36E-4ADA-8A95-5F8D1DC92FA9}', 'Buffer' => bin2hex($CMsg->getMessage())]));
-        if ($result === false) {
+        $SendResult = $this->SendDataToParent(json_encode(['DataID' => '{79827379-F36E-4ADA-8A95-5F8D1DC92FA9}', 'Buffer' => bin2hex($CMsg->getMessage())]));
+        if ($SendResult === false) {
             $this->SetStatus(IS_EBASE + 1);
             return false;
         }
@@ -988,6 +959,9 @@ class ChromeCast extends IPSModuleStrict
         }
         $Result = $this->WaitForResponse($RequestId);
         $this->SendDebug('Result (' . $RequestId . ')', $Result, 0);
+        if ($Result) {
+            $this->DecodeEvent($CMsg, $Result);
+        }
         return $Result;
     }
 
@@ -1061,6 +1035,9 @@ class ChromeCast extends IPSModuleStrict
                         if (isset($Status['playerState'])) {
                             if ($Status['playerState'] != \Cast\PlayerState::Buffering) {
                                 if (isset($Status['supportedMediaCommands'])) {
+                                    if (isset($Status['queueData'])) {
+                                        $Status['supportedMediaCommands'] += 64;
+                                    }
                                     $this->updateControlsByMediaCommand($Status['supportedMediaCommands']);
                                 }
                                 $this->SetValue(\Cast\Device\VariableIdent::PlayerState, \Cast\PlayerState::$StateToInt[$Status['playerState']]);
@@ -1175,6 +1152,15 @@ class ChromeCast extends IPSModuleStrict
                                 if ($this->MediaUrl != $Media['metadata']['images'][$Key]['url']) {
                                     $this->MediaUrl = $Media['metadata']['images'][$Key]['url'];
                                     $this->SetMediaImage($Media['metadata']['images'][$Key]['url']);
+                                }
+                            } else {
+                                if (isset($Media['contentType'])) {
+                                    if (str_starts_with($Media['contentType'], 'image/')) {
+                                        if ($this->MediaUrl != $Media['contentUrl']) {
+                                            $this->MediaUrl = $Media['contentUrl'];
+                                            $this->SetMediaImage($Media['contentUrl']);
+                                        }
+                                    }
                                 }
                             }
                             //customData:artists
@@ -1309,9 +1295,13 @@ class ChromeCast extends IPSModuleStrict
         }
         $this->supportedMediaCommands = $MediaCommand;
         $Commands = \Cast\MediaCommands::ListAvailableCommands($MediaCommand);
-        $Profile = '~PlaybackNoStop';
+        $Profile = '~PlaybackPreviousNextNoStop';
         if (!in_array(\Cast\MediaCommands::Pause, $Commands)) {
+            if (in_array(\Cast\MediaCommands::Next, $Commands)) {
+                $Profile = '~PlaybackPreviousNextNoStop';
+            } else {
             $Profile = '~PlaybackNoStop';
+            }
         } else {
             if (in_array(\Cast\MediaCommands::Next, $Commands)) {
                 $Profile = '~PlaybackPreviousNext';
