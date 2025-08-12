@@ -165,20 +165,21 @@ namespace Cast
 
         public static $Apps =
             [
-                self::Audible              => 'Audible',
-                self::Backdrop             => 'Backdrop',
-                self::CastBridge           => 'AirConnect & CastBridge',
-                self::ChromeMirroring      => 'Chrome Mirroring',
-                self::DefaultMediaReceiver => 'Default Media Receiver',
-                self::DisneyPlus           => 'Disney+',
-                self::EurekaIdleScreen     => 'Idle Screen',
-                self::GooglePhotos         => 'Google Photos',
-                self::GooglePodcast        => 'Google Podcast',
-                self::Netflix              => 'Netflix',
-                self::ScreenMirroring      => 'Screen Mirroring',
-                self::Spotify              => 'Spotify',
-                self::YouTube              => 'YouTube',
-                self::YouTubeMusic         => 'YouTube Music',
+                self::AndroidNativeApp      => 'Android App',
+                self::Audible               => 'Audible',
+                self::Backdrop              => 'Backdrop',
+                self::CastBridge            => 'AirConnect & CastBridge',
+                self::ChromeMirroring       => 'Chrome Mirroring',
+                self::DefaultMediaReceiver  => 'Default Media Receiver',
+                self::DisneyPlus            => 'Disney+',
+                self::EurekaIdleScreen      => 'Idle Screen',
+                self::GooglePhotos          => 'Google Photos',
+                self::GooglePodcast         => 'Google Podcast',
+                self::Netflix               => 'Netflix',
+                self::ScreenMirroring       => 'Screen Mirroring',
+                self::Spotify               => 'Spotify',
+                self::YouTube               => 'YouTube',
+                self::YouTubeMusic          => 'YouTube Music',
             ];
 
         public static function getAllAppsAsProfileAssoziation(): array

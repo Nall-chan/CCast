@@ -177,7 +177,8 @@ class ChromeCast extends IPSModuleStrict
         $ParentID = $this->RegisterParent();
 
         // Open auf false konfiguriert -> CS nie öffnen bzw. zwangsweise schließen
-        if (!$this->ReadPropertyBoolean(\Cast\Device\Property::Open)) {
+        $Open = $this->ReadPropertyBoolean(\Cast\Device\Property::Open);
+        if (!$Open) {
             if ($ParentID > 0) {
                 //$this->StatusIsChanging = false;
                 // Jetzt den CS schließen
@@ -200,12 +201,14 @@ class ChromeCast extends IPSModuleStrict
             return;
         }
         // Prüfe ob Watchdog konfiguriert & Condition gegeben ist
+        if ($this->ReadPropertyBoolean(\Cast\Device\Property::Watchdog)) {
         $Open = $this->CheckCondition();
         if ($Open) {
             if (!$this->CheckPort()) { // Keine Verbindung über CS erzwingen wenn Host offline ist
                 echo $this->Translate('Could not connect to TCP-Server');
                 $Open = false;
             }
+        }
         }
         // Jetzt den CS passend konfigurieren bzw. öffnen/schließen
         if (!$Open) {
@@ -258,7 +261,6 @@ class ChromeCast extends IPSModuleStrict
                         case IS_EBASE + 1: //ERROR connection lost
                         case IS_INACTIVE:
                             $this->SetTimerInterval(\Cast\Device\Timer::KeepAlive, 0);
-                            //$this->SetTimerInterval(\Cast\Device\Timer::ProgressState, 0);
                             $this->SendDebug('IM_CHANGESTATUS', 'not active', 0);
                             $this->Buffer = '';
                             $this->RequestId = 1;
@@ -299,9 +301,13 @@ class ChromeCast extends IPSModuleStrict
      */
     public function GetConfigurationForParent(): string
     {
+        if ($this->ReadPropertyBoolean(\Cast\Device\Property::Watchdog)) {
         $Config[\Cast\IO\Property::Open] = false;
         if ($this->ReadPropertyBoolean(\Cast\Device\Property::Open)) {
             $Config[\Cast\IO\Property::Open] = ($this->GetStatus() == IS_ACTIVE);
+        }
+        } else {
+            $Config[\Cast\IO\Property::Open] = $this->ReadPropertyBoolean(\Cast\Device\Property::Open);
         }
         $Config[\Cast\IO\Property::Port] = $this->ReadPropertyInteger(\Cast\Device\Property::Port);
         $Config[\Cast\IO\Property::UseSSL] = true;
@@ -542,7 +548,7 @@ class ChromeCast extends IPSModuleStrict
         $CMsg = new \Cast\CastMessage([$this->InstanceID, 'receiver-0', \Cast\Urn::ReceiverNamespace, 0, $Payload]);
         $Payload = $this->Send($CMsg, $RequestId);
         if ($Payload) {
-            //$this->DecodeEvent($CMsg, $Payload);
+            $this->DecodeEvent($CMsg, $Payload);
             return true;
         }
         return false;
@@ -757,8 +763,12 @@ class ChromeCast extends IPSModuleStrict
                 break;
             default:
                 if ($this->ParentID > 0) {
+                    if ($this->ReadPropertyBoolean(\Cast\Device\Property::Watchdog)) {
                     IPS_SetProperty($this->ParentID, \Cast\IO\Property::Open, false);
                     @IPS_ApplyChanges($this->ParentID);
+                    } else {
+                        $this->SetStatus(IS_EBASE + 1);
+                    }
                 }
                 break;
         }
@@ -796,9 +806,6 @@ class ChromeCast extends IPSModuleStrict
 
     private function CheckCondition(): bool
     {
-        if (!$this->ReadPropertyBoolean(\Cast\Device\Property::Watchdog)) {
-            return true;
-        }
         switch ($this->ReadPropertyInteger(\Cast\Device\Property::ConditionType)) {
             case 0:
                 $Result = @Sys_Ping($this->Host, 500);
@@ -1213,7 +1220,11 @@ class ChromeCast extends IPSModuleStrict
 
                 break;
             case \Cast\Urn::ReceiverNamespace:
+                $Payload['type'] = $Payload['type'] ?? $Payload['responseType'];
                 switch ($Payload['type']) {
+                    case \Cast\Commands::GetAppAvailability:
+                        // @todo auswerten
+                        break;
                     case \Cast\Commands::LaunchStatus:
                         break;
                     case \Cast\Commands::LaunchError:
@@ -1236,7 +1247,7 @@ class ChromeCast extends IPSModuleStrict
                                 $this->SetIcon($ActualApp['iconUrl']);
                             }
                             }
-                            $found = array_search($ActualApp[\Cast\Device\VariableIdent::AppId], \Cast\Apps::$Apps);
+                            $found = array_search($ActualApp['displayName'], \Cast\Apps::$Apps);
                             if ($found !== false) {
                                 $ActualApp[\Cast\Device\VariableIdent::AppId] = $found;
                                 }
