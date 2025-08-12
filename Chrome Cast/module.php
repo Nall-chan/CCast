@@ -597,7 +597,6 @@ class ChromeCast extends IPSModuleStrict
         return $Payload ? true : false;
     }
 
-    }
     public function CloseApp(): bool
     {
         $Payload = \Cast\Payload::makePayload(\Cast\Commands::Close);
@@ -606,6 +605,7 @@ class ChromeCast extends IPSModuleStrict
         $this->ClearMediaVariables();
         return $Payload;
     }
+
     public function RequestState(): bool
     {
         $this->SendDebug(__FUNCTION__, '', 0);
