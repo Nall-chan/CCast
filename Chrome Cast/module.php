@@ -345,13 +345,8 @@ class ChromeCast extends IPSModuleStrict
                 $this->RequestState();
                 break;
             case \Cast\Commands::Connect:
-                $this->SetMediaImage('');
                 $this->Connect($Value);
-                if ($this->isIdleScreen) {
-                    $this->RequestIdleState();
-                } else {
-                    $this->RequestMediaState();
-                }
+                $this->RequestMediaState();
                 break;
             case \Cast\Device\VariableIdent::Volume:
                 $this->SetVolumen($Value / 100);
@@ -619,33 +614,29 @@ class ChromeCast extends IPSModuleStrict
 
     public function RequestMediaState(): bool
     {
+        if ($this->isIdleScreen) {
+            return $this->RequestIdleState();
+        }
         $this->SendDebug(__FUNCTION__, '', 0);
         $RequestId = $this->RequestId++;
         $Urn = \Cast\Urn::MediaNamespace;
         $Payload = \Cast\Payload::makePayload(\Cast\Commands::GetStatus, ['requestId' => $RequestId]);
-
         $CMsg = new \Cast\CastMessage([$this->InstanceID, $this->TransportId, $Urn, 0, $Payload]);
-
-        /*
-        $Payload = \Cast\Payload::makePayload(\Cast\Commands::GetStatus, ['requestId'=>$RequestId]);
-        $Urn = 'urn:x-cast:com.google.cast.remotecontrol';
-        $CMsg = new \Cast\CastMessage([$this->InstanceID, 'system-0', $Urn, 0, $Payload]);
-         */
         $Payload = $this->Send($CMsg, $RequestId);
-        /*
-            $this->SendDebug(__FUNCTION__,'Clear TransportId & MediaSessionId',0);
+        if ($Payload === false) {
+            $this->SendDebug(__FUNCTION__, 'Clear TransportId & MediaSessionId', 0);
             $this->ClearMediaVariables();
-         */
+        }
         return $Payload ? true : false;
     }
 
-    public function RequestIdleState(): void
+    public function RequestIdleState(): bool
     {
         $this->SendDebug(__FUNCTION__, '', 0);
         $Urn = \Cast\Urn::SSE;
         $Payload = \Cast\Payload::makePayload(\Cast\Commands::GetStatus);
         $CMsg = new \Cast\CastMessage([$this->InstanceID, $this->TransportId, $Urn, 0, $Payload]);
-        $Payload = $this->Send($CMsg);
+        return $this->Send($CMsg);
     }
 
     public function SendCommand(string $URN, string $Command, array $Payload = []): bool
@@ -1282,10 +1273,8 @@ class ChromeCast extends IPSModuleStrict
         if ($this->ReadPropertyBoolean(\Cast\Device\Property::EnableRawPosition)) {
             $this->SetValue(\Cast\Device\VariableIdent::PositionRaw, 0);
         }
-        //$this->SetIcon('');
-        //$this->SetMediaImage('');
         $this->updateControlsByMediaCommand(0);
-        $this->SetValue(\Cast\Device\VariableIdent::PlayerState, 1);
+        $this->SetValue(\Cast\Device\VariableIdent::PlayerState, 3);
     }
 
     private function updateControlsByMediaCommand(int $MediaCommand): void
