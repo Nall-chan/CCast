@@ -193,11 +193,13 @@ class ChromeCast extends IPSModuleStrict
         // Kein Parent
         if ($ParentID == 0) {
             $this->IOChangeState(IS_INACTIVE);
+            $this->SetWatchdogTimer(true);
             return;
         }
         // Oder Parent ohne konfigurierten Host
         if ($this->Host == '') {
             $this->IOChangeState(IS_INACTIVE);
+            $this->SetWatchdogTimer(true);
             return;
         }
         // Prüfe ob Watchdog konfiguriert & Condition gegeben ist
@@ -241,6 +243,18 @@ class ChromeCast extends IPSModuleStrict
         switch ($Message) {
             case IPS_KERNELSTARTED:
                 $this->KernelReady();
+                break;
+            case IM_CHANGESETTINGS:
+                if ($SenderID != $this->ParentID) {
+                    return;
+                }
+                $this->RegisterParent();
+                if ($this->HasActiveParent()) {
+                    $State = IS_ACTIVE;
+                } else {
+                    $State = IS_INACTIVE;
+                }
+                IPS_RunScriptText('IPS_RequestAction(' . $this->InstanceID . ',"IOChangeState",' . $State . ');');
                 break;
             case IM_CHANGESTATUS:
                 if ($SenderID == $this->InstanceID) {
@@ -527,7 +541,7 @@ class ChromeCast extends IPSModuleStrict
                 'media' => [
                     'contentUrl'  => $Url,
                     'streamType'  => $isLive ? 'LIVE' : 'BUFFERED',
-                    'contentType' => $contentType
+                    'contentType' => $contentType == '' ? self::GetMimeType(substr($Url, -3)) : $contentType
                 ],
                 'requestId' => $RequestId
             ];
@@ -572,6 +586,7 @@ class ChromeCast extends IPSModuleStrict
         }
         $PayloadItems = [];
         foreach ($Items as $Item) {
+            $Item['contentType'] = $Item['contentType'] ?? self::GetMimeType(substr($Item['contentUrl'], -3));
             $PayloadItems[] = [
                 'media'=> array_merge(\Cast\Queue::$MediaItemKeys, $Item)
             ];
@@ -643,7 +658,7 @@ class ChromeCast extends IPSModuleStrict
     {
         $RequestId = $this->RequestId++;
         $Payload = \Cast\Payload::makePayload($Command, array_merge($Payload, ['requestId' => $RequestId]));
-        $CMsg = new \Cast\CastMessage([$this->InstanceID, 'receiver-0', 'urn:x-cast:com.google.cast.' . $URN, 0, $Payload]);
+        $CMsg = new \Cast\CastMessage([$this->InstanceID, 'receiver-0', $URN, 0, $Payload]);
         $Payload = $this->Send($CMsg, $RequestId);
         return $Payload ? true : false;
     }
@@ -652,17 +667,9 @@ class ChromeCast extends IPSModuleStrict
     {
         $RequestId = $this->RequestId++;
         $Payload = \Cast\Payload::makePayload($Command, array_merge($Payload, ['requestId' => $RequestId]));
-        $CMsg = new \Cast\CastMessage([$this->InstanceID, $this->TransportId, 'urn:x-cast:com.google.' . $URN, 0, $Payload]);
+        $CMsg = new \Cast\CastMessage([$this->InstanceID, $this->TransportId, $URN, 0, $Payload]);
         $Payload = $this->Send($CMsg, $RequestId);
         return $Payload ? true : false;
-    }
-
-    public function SendPing(): bool
-    {
-        $Payload = \Cast\Payload::makePayload(\Cast\Commands::Ping);
-        $CMsg = new \Cast\CastMessage([$this->InstanceID, 'receiver-0', \Cast\Urn::HeartbeatNamespace, 0, $Payload]);
-        $Result = $this->Send($CMsg);
-        return $Result;
     }
 
     public function ReceiveData($JSONString): string
@@ -674,15 +681,23 @@ class ChromeCast extends IPSModuleStrict
 
     protected function RegisterParent(): int
     {
-        $ParentID = $this->IORegisterParent();
-
-        if ($ParentID > 0) {
-            $this->Host = IPS_GetProperty($ParentID, \Cast\IO\Property::Host);
+        $OldParentId = $this->ParentID;
+        $ParentId = $this->IORegisterParent();
+        if ($ParentId != $OldParentId) {
+            if ($OldParentId > 0) {
+                $this->UnregisterMessage($OldParentId, IM_CHANGESETTINGS);
+            }
+            if ($ParentId > 0) {
+                $this->RegisterMessage($ParentId, IM_CHANGESETTINGS);
+            }
+        }
+        if ($ParentId > 0) {
+            $this->Host = IPS_GetProperty($ParentId, \Cast\IO\Property::Host);
         } else {
             $this->Host = '';
         }
         $this->SetSummary($this->Host);
-        return $ParentID;
+        return $ParentId;
     }
 
     /**
@@ -706,7 +721,7 @@ class ChromeCast extends IPSModuleStrict
         }
         $this->StatusIsChanging = true;
         $this->SendDebug('IOChangeState', 'StatusIsChanging now locked', 0);
-        if (!$this->ReadPropertyBoolean(\Cast\Device\Property::Open)) {
+        if (!$this->ReadPropertyBoolean(\Cast\Device\Property::Open) || ($this->Host == '')) {
             if ($this->GetStatus() != IS_INACTIVE) {
                 $this->SetStatus(IS_INACTIVE);
             }
@@ -736,6 +751,14 @@ class ChromeCast extends IPSModuleStrict
         }
         $this->SendDebug('IOChangeState', 'StatusIsChanging now unlocked', 0);
         $this->StatusIsChanging = false;
+    }
+
+    private function SendPing(): bool
+    {
+        $Payload = \Cast\Payload::makePayload(\Cast\Commands::Ping);
+        $CMsg = new \Cast\CastMessage([$this->InstanceID, 'receiver-0', \Cast\Urn::HeartbeatNamespace, 0, $Payload]);
+        $Result = $this->Send($CMsg);
+        return $Result;
     }
 
     /**
@@ -1329,6 +1352,22 @@ class ChromeCast extends IPSModuleStrict
             $this->DisableAction(\Cast\Device\VariableIdent::CurrentTime);
         }
         $this->SendDebug('COMMANDS', $Commands, 0);
+    }
+    private static function GetMimeType($extension)
+    {
+        $lines = file(IPS_GetKernelDirEx() . 'mime.types');
+        foreach ($lines as $line) {
+            $type = explode("\t", $line, 2);
+            if (count($type) == 2) {
+                $types = explode(' ', trim($type[1]));
+                foreach ($types as $ext) {
+                    if ($ext == $extension) {
+                        return $type[0];
+                    }
+                }
+            }
+        }
+        return 'text/plain';
     }
 
     private function DecodePacket(string $Data): void
