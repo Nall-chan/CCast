@@ -1,5 +1,5 @@
 [![SDK](https://img.shields.io/badge/Symcon-PHPModul-red.svg)](https://www.symcon.de/service/dokumentation/entwicklerbereich/sdk-tools/sdk-php/)
-[![Version](https://img.shields.io/badge/Modul%20Version-0.10-blue.svg)]()
+[![Version](https://img.shields.io/badge/Modul%20Version-0.20-blue.svg)]()
 [![Version](https://img.shields.io/badge/Symcon%20Version-8.1%20%3E-green.svg)](https://www.symcon.de/de/service/dokumentation/installation/migrationen/v80-v81-q3-2025/)  
 [![License](https://img.shields.io/badge/License-CC%20BY--NC--SA%204.0-green.svg)](https://creativecommons.org/licenses/by-nc-sa/4.0/)
 [![Check Style](https://github.com/Nall-chan/CCast/workflows/Check%20Style/badge.svg)](https://github.com/Nall-chan/CCast/actions)
@@ -22,6 +22,9 @@ Beschreibung des Moduls.
   - [1. Kachel-Visu](#1-kachel-visu)
   - [2. WebFront](#2-webfront)
 - [7. PHP-Befehlsreferenz](#7-php-befehlsreferenz)
+  - [Allgemeine Befehle:](#allgemeine-befehle)
+  - [Streaming von Inhalten](#streaming-von-inhalten)
+  - [Steuerung der Medienwiedergabe](#steuerung-der-medienwiedergabe)
 - [8. Anhang](#8-anhang)
   - [1. Changelog](#1-changelog)
   - [2. Spenden](#2-spenden)
@@ -98,6 +101,8 @@ Die Funktionalität, die das Modul im WebFront bietet.
 
 ## 7. PHP-Befehlsreferenz
 
+### Allgemeine Befehle:
+
 `bool CCAST_SetVolumen(integer $InstanzID, float $Level);`  
 Setzt die Lautstärke auf den Wert von `Level`.  
 
@@ -139,6 +144,143 @@ Beispiel:
 Default Media Render starten.  
 
 ---
+`bool CCAST_GetAppAvailability(integer $InstanzID);`  
+Aktuell nicht verfügbar  
+
+Beispiel:  
+`CCAST_GetAppAvailability(12345);`  
+
+---
+`bool CCAST_CloseApp(integer $InstanzID);`  
+Beendet die aktuelle Cast App.  
+Wird z.B. bei Android TV Geräten eine native App ausgeführt, so hat der Befehl darauf keinen Einfluss.  
+
+Beispiel:  
+`CCAST_CloseApp(12345);`  
+
+---
+`bool CCAST_RequestState(integer $InstanzID);`  
+Frage den aktuellen Status ab.    
+
+Beispiel:  
+`CCAST_RequestState(12345);`  
+
+---
+`bool CCAST_RequestIdleState(integer $InstanzID);`  
+Fragt den aktuellen Ruhemodus ab.  
+
+Beispiel:  
+`CCAST_RequestIdleState(12345);`  
+
+---
+`bool CCAST_SendCommand(integer $InstanzID, string $URN, string $Command, array $Payload = []);`  
+Testfunktion.
+Ermöglicht das Senden von einem Befehl mit Payload über eine spezifische URL an das Gerät.  
+
+Beispiel:  
+`CCAST_SendCommand(12345, 'urn:x-cast:com.google.cast.receiver', 'GET_STATUS', []);`  
+Entspricht dem Befehl CCAST_RequestState.  
+
+---
+`bool CCAST_SendCommandToApp(integer $InstanzID, string $URN, string $Command, array $Payload = []);`  
+Testfunktion.
+Ermöglicht das Senden von einem Befehl mit Payload über eine spezifische URL an die laufende App (Session).  
+
+Beispiel:  
+`CCAST_SendCommandToApp(12345, 'urn:x-cast:com.google.cast.tp.connection', 'CLOSE', []);`  
+Entspricht dem Befehl CCAST_CloseApp.  
+
+### Streaming von Inhalten
+ 
+`bool CCAST_PlayText(integer $InstanzID, string $Text, bool $CloseApp);`
+Startet eine Sprachausgabe mit dem in `Text` übergebenen Inhalt auf dem Gerät.  
+Der Parameter `CloseApp` sollte `true` sein, wenn keine weiteren Ausgaben oder Medien geladen werden.  
+
+Beispiel:  
+`CCAST_PlayText(12345, 'Achtung! Es folgt eine Durchsage.', false);`
+
+---  
+`bool CCAST_DisplayWebsite(integer $InstanzID, string $Url, bool $DisableInput, bool $AutoReload);`
+Veranlasst das Gerät die in `Url` übergebene Website aufzurufen und darzustellen.  
+Über `DisableInput` auf `true` wird eine Eingabe unterbunden.  
+Der Parameter `AutoReload` sollte ein neu laden ermöglichen.  
+
+Beispiel:  
+`CCAST_DisplayWebsite(12345, 'https://community.symcon.de',false,true);`
+
+---
+`bool CCAST_LoadMediaURL(integer $InstanzID, string $Url, string $contentType, bool $isLive);`  
+Startet den Default Media Receiver, sofern nicht schon gestartet, und lädt die in `Url` übergebene Quelle.  
+Die Quelle muss ohne weitere Authentifizierung vom Gerät aus erreichbar sein.  
+Der Default Media Receiver unterstützt keine Anmeldeverfahren. Auch ein übergeben von Anmeldedaten in der Url wird nicht funktionieren.  
+Der Parameter `isLive` muss für Live-Streams `true` sein. Für normale Dateien wird `false` empfohlen.  
+Der `contentType` sollte passend zur Quelle gewählt werden und entspricht den MIME-Typen.  
+Wird ein leere String bei `contentType` übergeben, so wird versucht den richtigen Typ automatisch zu ermitteln.  
+
+Auswahl von unterstützen und getesteten contentType`s:  
+| contentType | Datei / Format |
+| ----------- | -------------- |
+| audio/mp3   | MP3            |
+| audio/mpeg  | MP3            |
+| video/mp4   | MP4            |
+| image/png   | PNG Bild       |
+| image/jpeg  | JPG Bild       |
+
+Beispiel Live-Stream einer Kamera:  
+`CCAST_LoadMediaURL(12345, 'http://meineKamera/video.mp4', 'video/mp4', true);`  
+
+Beispiel Wiedergabe einer MP3 Datei:  
+`CCAST_LoadMediaURL(12345, 'http://meinSymcon:3777/user/Alarmton.mp3', 'audio/mp3', false);`  
+
+Beispiel Anzeige eines Bildes:  
+`CCAST_LoadMediaURL(12345, 'https://upload.wikimedia.org/wikipedia/commons/a/ad/Reflection_nebula_IC_349_near_Merope.jpg', 'image/jpeg', false);`  
+
+---
+`bool CCAST_LoadMediaId(integer $InstanzID, string $contentId, string $contentType, bool $isLive);`  
+Identisch zu `CCAST_LoadMediaURL`, jedoch wird hier eine `contentId` für die entsprechende Quelle erwartet.  
+
+---
+`bool CCAST_LoadMediaQueue(integer $InstanzID, array $Items, bool $Repeat, integer $StartIndex, bool $Autoplay);`
+Lädt eine Liste von `Items` als Wiedergabeliste.  
+Jeder Eintrag von `Items` muss mindestens das Feld `contentUrl` enthalten.  
+Optional sind `streamType` und `contentType` möglich, wie bei den Funktionen zuvor.  
+Außerdem können über das Feld `metadata` noch weitere Daten der Quelle, wie Titel, Bild/Thumbnail, Collection usw.. ergänzt werden.
+
+Der Parameter `Repeat` kann für Wiederholung der Liste auf `true` gesetzt werden, sonst muss `false` angegeben werden.  
+Der zuerst Wiedergegebene Eintrag ist in `StartIndex` zu übergeben und fängt mit 0 an.  
+Über den Parameter `Autoplay` auf `true` kann die Wiedergabe sofort gestartet werden.  
+
+Beispiel:  
+```php
+$Items = [
+  [
+    'contentUrl'  => 'http://meinSymcon:3777/user/Alarmton.mp3',
+    'metadata'    =>  // metadate enthält zusätzliche Daten des Objektes
+    [
+      'title' => 'Achtung Achtung' // Anzeigetitel
+    ]
+  ],
+  [
+    'contentUrl' => 'http://meineKamera/videoStream',
+    'streamType'  => 'LIVE',
+    'contentType' => 'video/mp4',
+    'metadata'    =>  // metadate enthält zusätzliche Daten des Objektes
+    [
+      'images' =>
+      [
+        [
+          'url' => 'http://meineKamera/SnapshotBild.jpg'  //Vorschaubild
+        ]
+      ],
+      'title' => 'Meine Kamera' // Anzeigetitel
+    ]    
+  ]
+];
+CCAST_LoadMediaQueue(12345, $Items, true, 1, true);
+```  
+
+### Steuerung der Medienwiedergabe
+
 `bool CCAST_SetPlayerState(integer $InstanzID, string $State);`  
 Sendet einen Steuerbefehl an die aktuelle Wiedergabe.  
 
@@ -173,112 +315,50 @@ Wiedergabe 10 Sekunden zurückspulen.
 
 ---
 `bool CCAST_SetRepeat(integer $InstanzID, string $Mode);`  
-Aktuell nicht verfügbar
+Steuert die Art der Wiederholung einer Wiedergabeliste.  
+Wird nicht von allen Quellen unterstützt!  
+
+| Werte von Mode   |
+| ---------------- |
+| QUEUE_REPEAT_OFF |
+| QUEUE_REPEAT_ONE |
+| QUEUE_REPEAT_ALL |
+
 
 Beispiel:  
-`CCAST_SetRepeat(12345);`  
+`CCAST_SetRepeat(12345, 'QUEUE_REPEAT_ALL');`  
+
+---
+`bool CCAST_Shuffle(integer $InstanzID);`  
+Lässt die Wiedergabeliste durchmischen.  
+Wird nicht von allen Quellen unterstützt!  
+
+Beispiel:  
+`CCAST_Shuffle(12345);`  
 
 ---
 `bool CCAST_SetLike(integer $InstanzID, bool $Liked);`  
-Aktuell nicht verfügbar
+Erlaubt das setzen (`true`) oder löschen (`false`) eines Like der aktuellen Wiedergabe.  
+Wird nicht von allen Quellen unterstützt!  
 
 Beispiel:  
-`CCAST_SetLike(12345);`  
+`CCAST_SetLike(12345,true);`  
 
 ---
-`bool CCAST_GetAppAvailability(integer $InstanzID);`  
-Aktuell nicht verfügbar  
+`bool CCAST_SetDislike(integer $InstanzID, bool $Disliked);`  
+Erlaubt das setzen (`true`) oder löschen (`false`) eines Dislike der aktuellen Wiedergabe.  
+Wird nicht von allen Quellen unterstützt!  
 
 Beispiel:  
-`CCAST_GetAppAvailability(12345);`  
+`CCAST_SetDislike(12345,true);`  
 
 ---
-`bool CCAST_LoadMediaURL(integer $InstanzID, string $Url, string $contentType, bool $isLive);`  
-Startet den Default Media Receiver, sofern nicht schon gestartet, und lädt die in `Url` übergebene Quelle.  
-Die Quelle muss ohne weitere Authentifizierung vom Gerät aus erreichbar sein.  
-Der Default Media Receiver unterstützt keine Anmeldeverfahren. Auch ein übergeben von Anmeldedaten in der Url wird nicht funktionieren.  
-Der Parameter `isLive` muss für Live-Streams `true` sein. Für normale Dateien wird `false` empfohlen.  
-Der `contentType` sollte passend zur Quelle gewählt werden und entspricht den MIME-Typen.  
-Wird ein leere String bei `contentType` übergeben, so wird versucht den richtigen Typ automatisch zu ermitteln.  
-
-Auswahl von unterstützen und getesteten contentType`s:  
-| contentType | Datei / Format |
-| ----------- | -------------- |
-| audio/mp3   | MP3            |
-| audio/mpeg  | MP3            |
-| video/mp4   | MP4            |
-| image/png   | PNG Bild       |
-| image/jpeg  | JPG Bild       |
-
-
-
-Beispiel Live-Stream einer Kamera:  
-`CCAST_LoadMediaURL(12345, 'http://meineKamera/video.mp4', 'video/mp4', true);`  
-
-Beispiel Wiedergabe einer MP3 Datei:  
-`CCAST_LoadMediaURL(12345, 'http://meinSymcon:3777/user/Alarmton.mp3', 'audio/mp3', false);`  
-
-Beispiel Anzeige eines Bildes:  
-`CCAST_LoadMediaURL(12345, 'https://upload.wikimedia.org/wikipedia/commons/a/ad/Reflection_nebula_IC_349_near_Merope.jpg', 'image/jpeg', false);`  
-
----
-`bool CCAST_LoadMediaId(integer $InstanzID, string $contentId, string $contentType, bool $isLive);`  
-Identisch zu `CCAST_LoadMediaURL`, jedoch wird hier eine `contentId` für die entsprechende Quelle erwartet.  
-
----
-`bool CCAST_LoadMediaQueue(integer $InstanzID, array $Items, bool $Repeat, integer $StartIndex, bool $Autoplay)`
-Lädt eine Liste von `Items` als Wiedergabeliste.  
-Jeder Eintrag von `Items` muss mindestens das Feld `contentUrl` enthalten.  
-Optional sind `streamType` und `contentType` möglich, wie bei den Funktionen zuvor.  
-Außerdem können über das Feld `metadata` noch weitere Daten der Quelle, wie Titel, Bild/Thumbnail, Collection usw.. ergänzt werden.
-
-Der Parameter `Repeat` kann für Wiederholung der Liste auf `true` gesetzt werden, sonst muss `false` angegeben werden.  
-Der zuerst Wiedergegebene Eintrag ist in `StartIndex` zu übergeben.  
-Über den Parameter `Autoplay` auf `true` kann die Wiedergabe sofort gestartet werden.  
+`bool CCAST_DisplayLyrics(integer $InstanzID, bool $Showing);`  
+Schaltet die Anzeige der Lyrics ein (`true`) oder aus (`false`).  
+Wird nicht von allen Quellen unterstützt!  
 
 Beispiel:  
-```php
-$Items = [
-  [
-    'contentUrl'  => 'http://meinSymcon:3777/user/Alarmton.mp3',
-    'metadata'    =>  // metadate enthält zusätzliche Daten des Objektes
-    [
-      'title' => 'Achtung Achtung' // Anzeigetitel
-    ]
-  ],
-  [
-    'contentUrl' => 'http://meineKamera/videoStream',
-    'streamType'  => 'LIVE',
-    'contentType' => 'video/mp4',
-    'metadata'    =>  // metadate enthält zusätzliche Daten des Objektes
-    [
-      'images' =>
-      [
-        [
-          'url' => 'http://meineKamera/SnapshotBild.jpg'  //Vorschaubild
-        ]
-      ],
-      'title' => 'Meine Kamera' // Anzeigetitel
-    ]    
-  ]
-];
-CCAST_LoadMediaQueue(12345, $Items, true, 1, true);
-```  
-
----
-`bool CCAST_CloseApp(integer $InstanzID);`  
-Beendet die aktuelle Cast App.  
-Wird z.B. bei Android TV Geräten eine native App ausgeführt, so hat der Befehl darauf keinen Einfluss.  
-
-Beispiel:  
-`CCAST_CloseApp(12345);`  
-
----
-`bool CCAST_RequestState(integer $InstanzID);`  
-Frage den aktuellen Status ab.    
-
-Beispiel:  
-`CCAST_RequestState(12345);`  
+`CCAST_DisplayLyrics(12345,true);`  
 
 ---
 `bool CCAST_RequestMediaState(integer $InstanzID);`  
@@ -286,31 +366,6 @@ Fragt den aktuellen Status der Medienwiedergabe ab.
 
 Beispiel:  
 `CCAST_RequestMediaState(12345);`  
-
----
-`bool CCAST_RequestIdleState(integer $InstanzID);`  
-Fragt den aktuellen Ruhemodus ab.  
-
-Beispiel:  
-`CCAST_RequestIdleState(12345);`  
-
----
-`bool CCAST_SendCommand(integer $InstanzID, string $URN, string $Command, array $Payload = []);`  
-Testfunktion.
-Ermöglicht das Senden von einem Befehl mit Payload über eine spezifische URL an das Gerät.  
-
-Beispiel:  
-`CCAST_SendCommand(12345, 'urn:x-cast:com.google.cast.receiver', 'GET_STATUS', []);`  
-Entspricht dem Befehl CCAST_RequestState.  
-
----
-`bool CCAST_SendCommandToApp(integer $InstanzID, string $URN, string $Command, array $Payload = []);`  
-Testfunktion.
-Ermöglicht das Senden von einem Befehl mit Payload über eine spezifische URL an die laufende App (Session).  
-
-Beispiel:  
-`CCAST_SendCommandToApp(12345, 'urn:x-cast:com.google.cast.tp.connection', 'CLOSE', []);`  
-Entspricht dem Befehl CCAST_CloseApp.  
 
 ## 8. Anhang
 

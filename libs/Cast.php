@@ -130,7 +130,7 @@ namespace Cast
     {
         //public const AuthNamespace = 'urn:x-cast:com.google.cast.tp.deviceauth';
         public const ConnectionNamespace = 'urn:x-cast:com.google.cast.tp.connection';
-
+        public const DashCast = 'urn:x-cast:es.offd.dashcast';
         public const HeartbeatNamespace = 'urn:x-cast:com.google.cast.tp.heartbeat';
         public const ReceiverNamespace = 'urn:x-cast:com.google.cast.receiver';
         public const MediaNamespace = 'urn:x-cast:com.google.cast.media';
@@ -152,6 +152,7 @@ namespace Cast
         public const Backdrop = 'E8C28D3C';
         public const CastBridge = '46C1A819';
         public const ChromeMirroring = '0F5096E8';
+        public const DashCast = '5C3F0A3C';
         public const DefaultMediaReceiver = 'CC1AD845'; //'85CDB22F' old
         public const DisneyPlus = 'C3DE6BC2';
         public const EurekaIdleScreen = 'EurekaIdleScreen'; //not connected to internet
@@ -170,6 +171,7 @@ namespace Cast
                 self::Backdrop              => 'Backdrop',
                 self::CastBridge            => 'AirConnect & CastBridge',
                 self::ChromeMirroring       => 'Chrome Mirroring',
+                self::DashCast              => 'Dashcast',
                 self::DefaultMediaReceiver  => 'Default Media Receiver',
                 self::DisneyPlus            => 'Disney+',
                 self::EurekaIdleScreen      => 'Idle Screen',
@@ -229,6 +231,7 @@ namespace Cast
         public const LoadFailed = 'LOAD_FAILED';
         public const LoadCancelled = 'LOAD_CANCELLED';
         public const InvalidRequest = 'INVALID_REQUEST';
+        public const Error = 'ERROR';
         public const Presentation = 'PRESENTATION';
         public const Other = 'OTHER';
 
@@ -289,16 +292,18 @@ namespace Cast
         public const Next = 'QUEUE_NEXT';
         public const Prev = 'QUEUE_PREV';
         public const Shuffle = 'QUEUE_SHUFFLE';
-        public const SkipAd = 'SKIP_AD';  //check
         public const RepeatAll = 'QUEUE_REPEAT_ALL';
         public const RepeatOne = 'QUEUE_REPEAT_ONE';
         public const EditTracks = 'INBAND_TRACK_ADDED';  //check
         public const PlaybackRate = 'PLAYBACK_RATE';  //check SET_PLAYBACK_RATE
+        public const StreamTransfer = 'STREAM_TRANSFER';
+
         public const Like = 'LIKE';
         public const Dislike = 'DISLIKE';
         public const Follow = 'FOLLOW';
         public const Unfollow = 'UNFOLLOW';
-        public const StreamTransfer = 'STREAM_TRANSFER';
+        public const Flag = 'FLAG';
+        public const SkipAd = 'SKIP_AD';  //check
         public const Lyrics = 'LYRICS';
 
         //public const EditTracks = 'EDIT_TRACKS';

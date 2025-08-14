@@ -1,5 +1,5 @@
 [![SDK](https://img.shields.io/badge/Symcon-PHPModul-red.svg)](https://www.symcon.de/service/dokumentation/entwicklerbereich/sdk-tools/sdk-php/)
-[![Version](https://img.shields.io/badge/Modul%20Version-0.10-blue.svg)]()
+[![Version](https://img.shields.io/badge/Modul%20Version-0.20-blue.svg)]()
 [![Version](https://img.shields.io/badge/Symcon%20Version-8.1%20%3E-green.svg)](https://www.symcon.de/de/service/dokumentation/installation/migrationen/v80-v81-q3-2025/)  
 [![License](https://img.shields.io/badge/License-CC%20BY--NC--SA%204.0-green.svg)](https://creativecommons.org/licenses/by-nc-sa/4.0/)
 [![Check Style](https://github.com/Nall-chan/CCast/workflows/Check%20Style/badge.svg)](https://github.com/Nall-chan/CCast/actions)
@@ -37,7 +37,7 @@ Feedback hierzu ist im Symcon Forum im entsprechenden Thread gerne erwünscht.
 ----------
 ### Zur Integration von Geräten  
 
-Getestet wurde zum großteil mit einem Google Nest Hub und TV-Boxen / Android TVs verschiedener Hersteller.  
+Getestet wurde zum Großteil mit einem Google Nest Hub und TV-Boxen / Android TVs verschiedener Hersteller.  
 Bei nativen Android Geräten mit Android TV (Google TV) wurden nicht alle Funktionen getestet.  
 Die Steuerung von nativen Android Apps auf diesen Geräten wird nur eingeschränkt möglich sein.  
 
@@ -72,6 +72,15 @@ Die Steuerung von nativen Android Apps auf diesen Geräten wird nur eingeschrän
 ----------
 ### 2. Changelog
 
+**Version 0.20:**  
+- PHP-Befehle ergänzt um:
+  - Repeat
+  - Shuffle
+  - Like & Dislike
+  - Lyrics
+  - TTS (Sprachausgabe)
+  - Laden von Webseiten 
+  
 **Version 0.10:**  
 - Test Release für Symcon 8.1  
 
