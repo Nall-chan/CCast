@@ -732,7 +732,7 @@ class ChromeCast extends IPSModuleStrict
         $Payload = $this->Send($CMsg, $RequestId);
         if ($Payload === false) {
             $this->SendDebug(__FUNCTION__, 'Clear MediaSessionId', 0);
-            $this->ClearMediaVariables();
+            //$this->ClearMediaVariables();
         }
         return $Payload ? true : false;
     }
@@ -766,7 +766,7 @@ class ChromeCast extends IPSModuleStrict
 
     public function ReceiveData($JSONString): string
     {
-        $Data = $this->Buffer . hex2bin((json_decode($JSONString))->Buffer);
+        $Data = hex2bin((json_decode($JSONString))->Buffer);
         $this->DecodePacket($Data);
         return '';
     }
@@ -1472,6 +1472,7 @@ class ChromeCast extends IPSModuleStrict
 
     private function DecodePacket(string $Data): void
     {
+        $Data = $this->Buffer . $Data;
         $len = unpack('N', substr($Data, 0, 4))[1];
         if (strlen($Data) < $len + 4) {
             $this->Buffer = $Data;
@@ -1479,6 +1480,7 @@ class ChromeCast extends IPSModuleStrict
         }
         $Part = substr($Data, 4, $len);
         $Tail = substr($Data, 4 + $len, $len);
+        $this->Buffer = $Tail;
         $CMsg = new \Cast\CastMessage($Part);
 
         $Payload = $CMsg->getPayload();
@@ -1498,9 +1500,8 @@ class ChromeCast extends IPSModuleStrict
             }
         }
         if (strlen($Tail) > 4) {
-            $this->DecodePacket($Tail);
+            $this->DecodePacket('');
         }
-        $this->Buffer = $Tail;
     }
 
     /**
