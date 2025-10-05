@@ -1,21 +1,10 @@
 {
     "elements": [
         {
-            "type": "RowLayout",
-            "items": [
-                {
-                    "name": "Open",
-                    "type": "CheckBox",
-                    "width": "300px",
-                    "caption": "Active"
-                },
-                {
-                    "name": "Port",
-                    "type": "NumberSpinner",
-                    "width": "300px",
-                    "caption": "TCP-Port"
-                }
-            ]
+            "name": "Open",
+            "type": "CheckBox",
+            "width": "300px",
+            "caption": "Active"
         },
         {
             "type": "RowLayout",
@@ -49,6 +38,7 @@
                             "name": "Interval",
                             "type": "NumberSpinner",
                             "caption": "Interval",
+                            "minimum": 5,
                             "width": "150px",
                             "suffix": "seconds"
                         }

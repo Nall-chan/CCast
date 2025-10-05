@@ -55,8 +55,7 @@ class ChromeCastDiscovery extends IPSModuleStrict
                     [
                         'moduleID'         => \Cast\Device\GUID,
                         'configuration'    => [
-                            \Cast\Device\Property::Open             => true,
-                            \Cast\Device\Property::Port             => $Device['port']
+                            \Cast\Device\Property::Open             => true
                         ]
                     ],
                     [

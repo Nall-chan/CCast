@@ -79,7 +79,6 @@ class ChromeCast extends IPSModuleStrict
         $this->isIdleScreen = true;
         $this->PlaybackIsFinished = true;
         $this->RegisterPropertyBoolean(\Cast\Device\Property::Open, false);
-        $this->RegisterPropertyInteger(\Cast\Device\Property::Port, 8009);
         $this->RegisterPropertyBoolean(\Cast\Device\Property::Watchdog, true);
         $this->RegisterPropertyInteger(\Cast\Device\Property::Interval, 5);
         $this->RegisterPropertyInteger(\Cast\Device\Property::ConditionType, 0);
@@ -222,10 +221,6 @@ class ChromeCast extends IPSModuleStrict
             return;
         }
 
-        if (IPS_GetProperty($ParentID, \Cast\IO\Property::Port) != $this->ReadPropertyInteger(\Cast\Device\Property::Port)) {
-            IPS_SetProperty($ParentID, \Cast\IO\Property::Port, $this->ReadPropertyInteger(\Cast\Device\Property::Port));
-        }
-
         if (IPS_GetProperty($ParentID, \Cast\IO\Property::Open) != true) {
             IPS_SetProperty($ParentID, \Cast\IO\Property::Open, true);
         }
@@ -325,7 +320,6 @@ class ChromeCast extends IPSModuleStrict
         } else {
             $Config[\Cast\IO\Property::Open] = $this->ReadPropertyBoolean(\Cast\Device\Property::Open);
         }
-        $Config[\Cast\IO\Property::Port] = $this->ReadPropertyInteger(\Cast\Device\Property::Port);
         $Config[\Cast\IO\Property::UseSSL] = true;
         $Config[\Cast\IO\Property::VerifyHost] = false;
         $Config[\Cast\IO\Property::VerifyPeer] = false;
@@ -901,7 +895,8 @@ class ChromeCast extends IPSModuleStrict
         $context = stream_context_create();
         stream_context_set_option($context, 'ssl', 'verify_host', false);
         stream_context_set_option($context, 'ssl', 'verify_peer', false);
-        $Socket = @stream_socket_client('tcp://' . $this->Host . ':' . $this->ReadPropertyInteger(\Cast\Device\Property::Port), $errno, $errstr, 2, STREAM_CLIENT_CONNECT, $context);
+        $Port = IPS_GetProperty($this->ParentID, \Cast\IO\Property::Port);
+        $Socket = @stream_socket_client('tcp://' . $this->Host . ':' . $Port, $errno, $errstr, 2, STREAM_CLIENT_CONNECT, $context);
         if (!$Socket) {
             $this->SendDebug('CheckPort', false, 0);
             return false;
@@ -1066,6 +1061,7 @@ class ChromeCast extends IPSModuleStrict
         $Result = $this->WaitForResponse($RequestId);
         $this->SendDebug('Result (' . $RequestId . ')', $Result, 0);
         if ($Result) {
+            $Result['type'] = $Result['type'] ?? $Result['responseType'];
             $this->DecodeEvent($CMsg, $Result);
             return
                 $Result['type'] == \Cast\Commands::InvalidRequest ||

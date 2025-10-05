@@ -59,7 +59,6 @@ namespace Cast\Device
     class Property
     {
         public const Open = 'Open';
-        public const Port = 'Port';
         public const Watchdog = 'Watchdog';
         public const Interval = 'Interval';
         public const ConditionType = 'ConditionType';

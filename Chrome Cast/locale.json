@@ -5,6 +5,7 @@
             "Enter Address of Device in the parent Client-Socket.": "Adresse vom Gerät in dem übergeordneten Client-Socket einstellen.",
             "Open Client-Socket": "Öffne Client-Socket",
             "Advanced power-on watchdog": "Erweiterte Power-On Überwachung",
+            "Check never": "Prüfe nie",
             "Check every": "Prüfe alle",
             "Interval": "Intervall",
             "seconds": "Sekunden",
