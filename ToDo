@@ -1,0 +1,7 @@
+[ ] Laden von einer Queue (Funktion fehlt noch; aber schon getestet)
+[ ] Auswerten ob eine Queue im Media Status ist ->
+    [ ] Direkt Elemente enthalten, dann diese als Playlist anzeigen
+    [ ] Wenn im customData, dann nur bei unterstützen Diensten listId und currentIndex auswerten und als Playlist anzeigen
+[ ] Aktionen erstellen
+[ ] Repeat prüfen und einbauen
+[ ] Shuffle prüfen und einbauen
