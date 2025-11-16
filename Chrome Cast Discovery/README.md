@@ -5,12 +5,13 @@
 [![Check Style](https://github.com/Nall-chan/CCast/workflows/Check%20Style/badge.svg)](https://github.com/Nall-chan/CCast/actions)
 [![Run Tests](https://github.com/Nall-chan/CCast/workflows/Run%20Tests/badge.svg)](https://github.com/Nall-chan/CCast/actions)  
 [![PayPal.Me](https://img.shields.io/badge/PayPal-Me-lightblue.svg)](#2-spenden)
-[![Wunschliste](https://img.shields.io/badge/Wunschliste-Amazon-ff69fb.svg)](#2-spenden) 
+[![Wunschliste](https://img.shields.io/badge/Wunschliste-Amazon-ff69fb.svg)](#2-spenden)  
 
-# Chrome Cast Discovery   <!-- omit in toc -->
-Beschreibung des Moduls.
+# Chrome Cast Discovery   <!-- omit in toc -->  
 
-### Inhaltsverzeichnis   <!-- omit in toc -->
+Auffinden von Chrome Cast fähigen Geräten im Netzwerk.  
+
+## Inhaltsverzeichnis   <!-- omit in toc -->  
 
 - [1. Funktionsumfang](#1-funktionsumfang)
 - [2. Voraussetzungen](#2-voraussetzungen)
@@ -26,7 +27,8 @@ Beschreibung des Moduls.
 
 ## 1. Funktionsumfang
 
-*
+- Auffinden von Chrome Cast fähigen Geräten im Netzwerk  
+- Einrichten der Instanzen in Symcon  
 
 ## 2. Voraussetzungen
 
@@ -34,12 +36,13 @@ Beschreibung des Moduls.
 
 ## 3. Software-Installation
 
-* Über den Module Store das 'Chrome Cast'-Modul installieren.
+- Über den Module Store das 'Chrome Cast'-Modul installieren.
 
 ## 4. Einrichten der Instanzen in IP-Symcon
 
  Unter 'Instanz hinzufügen' kann das 'Chrome Cast Discovery'-Modul mithilfe des Schnellfilters gefunden werden.  
-	- Weitere Informationen zum Hinzufügen von Instanzen in der [Dokumentation der Instanzen](https://www.symcon.de/service/dokumentation/konzepte/instanzen/#Instanz_hinzufügen)
+
+- Weitere Informationen zum Hinzufügen von Instanzen in der [Dokumentation der Instanzen](https://www.symcon.de/service/dokumentation/konzepte/instanzen/#Instanz_hinzufügen)
 
 __Konfigurationsseite__:
 
@@ -47,7 +50,7 @@ Beim öffnen der Instanz wird automatisch ein Suchlauf gestartet.
 
 ![Config](imgs/Config.png)  
 
-Die Instanz listet alle im Netzwerk gefundenen Geräte auf und stellt sie, nach einem Abgleich der schon in Symcon eingerichteten [Chrome Cast-Module](../Chrome%20Cast/README.md), tabellarisch in einer Liste dar. 
+Die Instanz listet alle im Netzwerk gefundenen Geräte auf und stellt sie, nach einem Abgleich der schon in Symcon eingerichteten [Chrome Cast-Module](../Chrome%20Cast/README.md), tabellarisch in einer Liste dar.  
 
 Wird eine Zeile selektiert und die Schaltfläche `Erstellen` betätigt, so erzeugt Symcon automatisch eine neue [Chrome Cast](../Chrome%20Cast/README.md) Instanz.  
 
@@ -78,7 +81,7 @@ Die Library ist für die nicht kommerzielle Nutzung kostenlos, Schenkungen als U
 
 [![PayPal.Me](https://img.shields.io/badge/PayPal-Me-lightblue.svg)](https://paypal.me/Nall4chan)  
 
-[![Wunschliste](https://img.shields.io/badge/Wunschliste-Amazon-ff69fb.svg)](https://www.amazon.de/hz/wishlist/ls/YU4AI9AQT9F?ref_=wl_share) 
+[![Wunschliste](https://img.shields.io/badge/Wunschliste-Amazon-ff69fb.svg)](https://www.amazon.de/hz/wishlist/ls/YU4AI9AQT9F?ref_=wl_share)  
 
 ## 9. Lizenz
 
