@@ -65,11 +65,23 @@ Keine Statusvariablen verfügbar.
 
 Keine Visualisierung verfügbar.  
 
+### Kachel Visualisierung
+
+Keine Visualisierung verfügbar.  
+
+### WebFront Visualisierung
+
+Keine Visualisierung verfügbar.  
+
 ## 7. PHP-Befehlsreferenz
 
 Keine Instanz-Funktionen verfügbar.  
 
-## 8. Anhang
+## 8. Aktionen
+
+**Grundsätzlich können alle bedienbaren Statusvariablen als Ziel einer [`Aktion`](https://www.symcon.de/service/dokumentation/konzepte/automationen/ablaufplaene/aktionen/) mit `Auf Wert schalten` angesteuert werden, so dass hier keine speziellen Aktionen benutzt werden müssen.**
+
+## 9. Anhang
 
 ### 1. Changelog
 
@@ -83,7 +95,7 @@ Die Library ist für die nicht kommerzielle Nutzung kostenlos, Schenkungen als U
 
 [![Wunschliste](https://img.shields.io/badge/Wunschliste-Amazon-ff69fb.svg)](https://www.amazon.de/hz/wishlist/ls/YU4AI9AQT9F?ref_=wl_share)  
 
-## 9. Lizenz
+## 10. Lizenz
 
   IPS-Modul:  
   [CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/)  

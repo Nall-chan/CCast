@@ -93,7 +93,7 @@ class ChromeCastDiscovery extends IPSModuleStrict
         $mDNSInstanceIDs = IPS_GetInstanceListByModuleID(\Cast\mDNS\GUID);
         $resultServiceTypes = ZC_QueryServiceType($mDNSInstanceIDs[0], '_googlecast._tcp', 'local.');
         if (!$resultServiceTypes) {
-            die;
+            return [];
         }
         $this->SendDebug('mDNS resultServiceTypes', $resultServiceTypes, 0);
         $Devices = [];

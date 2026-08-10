@@ -13,7 +13,8 @@ Einbinden von Google Cast (ChromeCast) fähigen Geräten in Symcon.
 
 ## Inhaltsverzeichnis <!-- omit in toc -->
 
-- [1. Vorbemerkungen](#1-vorbemerkungen)
+- [1. Funktionsumfang](#1-funktionsumfang)
+- [Vorbemerkungen](#vorbemerkungen)
   - [Zur Library](#zur-library)
   - [Zur Integration von Geräten](#zur-integration-von-geräten)
 - [2. Voraussetzungen](#2-voraussetzungen)
@@ -27,7 +28,13 @@ Einbinden von Google Cast (ChromeCast) fähigen Geräten in Symcon.
 
 ----------
 
-## 1. Vorbemerkungen
+## 1. Funktionsumfang
+
+Anbindung und Steuerung von Google Cast (ChromeCast) fähigen Geräten in IP-Symcon.
+
+----------
+
+## Vorbemerkungen
 
 ### Zur Library
 

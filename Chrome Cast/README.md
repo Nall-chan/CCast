@@ -27,10 +27,11 @@ Einbinden eines Chrome Cast Gerätes in Symcon.
   - [Allgemeine Befehle](#allgemeine-befehle)
   - [Streaming von Inhalten](#streaming-von-inhalten)
   - [Steuerung der Medienwiedergabe](#steuerung-der-medienwiedergabe)
-- [8. Anhang](#8-anhang)
+- [8. Aktionen](#8-aktionen)
+- [9. Anhang](#9-anhang)
   - [1. Changelog](#1-changelog)
   - [2. Spenden](#2-spenden)
-- [9. Lizenz](#9-lizenz)
+- [10. Lizenz](#10-lizenz)
 
 ## 1. Funktionsumfang
 
@@ -391,7 +392,11 @@ Fragt den aktuellen Status der Medienwiedergabe ab.
 Beispiel:  
 `CCAST_RequestMediaState(12345);`  
 
-## 8. Anhang
+## 8. Aktionen
+
+**Grundsätzlich können alle bedienbaren Statusvariablen als Ziel einer [`Aktion`](https://www.symcon.de/service/dokumentation/konzepte/automationen/ablaufplaene/aktionen/) mit `Auf Wert schalten` angesteuert werden, so dass hier keine speziellen Aktionen benutzt werden müssen.**
+
+## 9. Anhang
 
 ### 1. Changelog
 
@@ -405,7 +410,7 @@ Die Library ist für die nicht kommerzielle Nutzung kostenlos, Schenkungen als U
 
 [![Wunschliste](https://img.shields.io/badge/Wunschliste-Amazon-ff69fb.svg)](https://www.amazon.de/hz/wishlist/ls/YU4AI9AQT9F?ref_=wl_share)  
 
-## 9. Lizenz
+## 10. Lizenz
 
   IPS-Modul:  
   [CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/)  
