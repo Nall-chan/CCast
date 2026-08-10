@@ -370,6 +370,20 @@ class ChromeCast extends IPSModuleStrict
             case \Cast\Device\VariableIdent::PlayerState:
                 $this->SetPlayerState(\Cast\PlayerState::$IntToAction[(int) $Value]);
                 break;
+            case 'PlayYouTube':
+                if (is_array($Value)) {
+                    $this->PlayYouTube($Value['videoId'] ?? '', $Value['listId'] ?? '');
+                } else {
+                    $this->PlayYouTube((string) $Value);
+                }
+                break;
+            case 'PlayYouTubeMusic':
+                if (is_array($Value)) {
+                    $this->PlayYouTubeMusic($Value['videoId'] ?? '', $Value['listId'] ?? '');
+                } else {
+                    $this->PlayYouTubeMusic((string) $Value);
+                }
+                break;
                 /*
     case \Cast\Device\VariableIdent::RepeatMode:
                 $this->SetRepeat($Value);
@@ -613,6 +627,74 @@ class ChromeCast extends IPSModuleStrict
         } while ($millis > microtime(true));
         return false;
     }
+    public function PlayYouTube(string $VideoId, string $ListId = ''): bool
+    {
+        if ($this->actualApp != \Cast\Apps::YouTube || $this->TransportId == '') {
+            if (!$this->LaunchApp(\Cast\Apps::YouTube)) {
+                return false;
+            }
+            IPS_Sleep(1000);
+        }
+        $this->Connect($this->TransportId);
+        $RequestId = $this->RequestId++;
+        $MediaCustomData = [];
+        if ($VideoId !== '') {
+            $MediaCustomData['contentId'] = $VideoId;
+        }
+        $Payload = [
+            'media' => [
+                'contentId'   => $VideoId,
+                'streamType'  => 'BUFFERED',
+                'contentType' => 'video/mp4',
+                'customData'  => [
+                    'media' => $MediaCustomData
+                ]
+            ],
+            'customData' => [
+                'listId' => $ListId
+            ],
+            'requestId' => $RequestId
+        ];
+        $Payload = \Cast\Payload::makePayload(\Cast\Commands::Load, $Payload);
+        $CMsg = new \Cast\CastMessage([$this->InstanceID, $this->TransportId, \Cast\Urn::MediaNamespace, 0, $Payload]);
+        $Payload = $this->Send($CMsg, $RequestId);
+        return $Payload ? true : false;
+    }
+
+    public function PlayYouTubeMusic(string $VideoId, string $ListId = ''): bool
+    {
+        if ($this->actualApp != \Cast\Apps::YouTubeMusic || $this->TransportId == '') {
+            if (!$this->LaunchApp(\Cast\Apps::YouTubeMusic)) {
+                return false;
+            }
+            IPS_Sleep(1000);
+        }
+        $this->Connect($this->TransportId);
+        $RequestId = $this->RequestId++;
+        $MediaCustomData = [];
+        if ($VideoId !== '') {
+            $MediaCustomData['contentId'] = $VideoId;
+        }
+        $Payload = [
+            'media' => [
+                'contentId'   => $VideoId,
+                'streamType'  => 'BUFFERED',
+                'contentType' => 'audio/mp4',
+                'customData'  => [
+                    'media' => $MediaCustomData
+                ]
+            ],
+            'customData' => [
+                'listId' => $ListId
+            ],
+            'requestId' => $RequestId
+        ];
+        $Payload = \Cast\Payload::makePayload(\Cast\Commands::Load, $Payload);
+        $CMsg = new \Cast\CastMessage([$this->InstanceID, $this->TransportId, \Cast\Urn::MediaNamespace, 0, $Payload]);
+        $Payload = $this->Send($CMsg, $RequestId);
+        return $Payload ? true : false;
+    }
+
     public function LoadMediaURL(string $Url, string $contentType, bool $isLive): bool
     {
         if ($this->actualApp != \Cast\Apps::DefaultMediaReceiver || $this->TransportId == '') {
