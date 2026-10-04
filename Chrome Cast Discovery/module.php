@@ -5,7 +5,7 @@ declare(strict_types=1);
 eval('declare(strict_types=1);namespace ChromeCastDiscovery {?>' . file_get_contents(dirname(__DIR__) . '/libs/helper/DebugHelper.php') . '}');
 require_once dirname(__DIR__) . '/libs/Cast.php';
 /**
- * @method bool SendDebug(string $Message, mixed $Data, int $Format)
+ * @method bool SendDebug(string $Message, mixed $data, int $Format)
  */
 class ChromeCastDiscovery extends IPSModuleStrict
 {
@@ -13,92 +13,96 @@ class ChromeCastDiscovery extends IPSModuleStrict
 
     public function GetConfigurationForm(): string
     {
-        $Form = json_decode(file_get_contents(__DIR__ . '/form.json'), true);
+        $form = json_decode(file_get_contents(__DIR__ . '/form.json'), true);
         if ($this->GetStatus() == IS_CREATING) {
-            return json_encode($Form);
+            return json_encode($form);
         }
-        $Form['actions'][0]['values'] = $this->GetDevices();
-        $this->SendDebug('FORM', json_encode($Form), 0);
+        $form['actions'][0]['values'] = $this->GetDevices();
+        $this->SendDebug('FORM', json_encode($form), 0);
         $this->SendDebug('FORM', json_last_error_msg(), 0);
 
-        return json_encode($Form);
+        return json_encode($form);
     }
 
     private function GetDevices(): array
     {
-        $Devices = $this->GetCastDevices();
-        $this->SendDebug('Cast Devices', $Devices, 0);
-        $IPSDevices = $this->GetIPSInstances();
-        $this->SendDebug('IPSDevices', $IPSDevices, 0);
-        $Values = [];
-        foreach ($Devices as $Device) {
-            $InstanceID = false;
-            $Host = false;
-            foreach ($Device['host'] as $DeviceHost) {
-                $InstanceID = array_search(strtolower($DeviceHost), $IPSDevices);
-                $this->SendDebug('IPSDevice', $InstanceID, 0);
-                if ($InstanceID) {
-                    $Host = $DeviceHost;
+        $devices = $this->GetCastDevices();
+        $this->SendDebug('Cast Devices', $devices, 0);
+        $ipsDevices = $this->GetIPSInstances();
+        $this->SendDebug('IPSDevices', $ipsDevices, 0);
+        $values = [];
+        foreach ($devices as $device) {
+            $instanceID = false;
+            $host = false;
+            foreach ($device['host'] as $deviceHost) {
+                $instanceID = array_search(strtolower($deviceHost), $ipsDevices);
+                $this->SendDebug('IPSDevice', $instanceID, 0);
+                if ($instanceID) {
+                    $host = $deviceHost;
                     break;
                 }
             }
-            if (!$Host) {
-                $Host = array_shift($Device['host']);
-                $this->SendDebug('Host', $Host, 0);
+            if (!$host) {
+                $host = array_shift($device['host']);
+                $this->SendDebug('Host', $host, 0);
             }
-            $Values[] = [
-                'host'                => $Host,
-                'model'               => $Device['model'],
-                'name'                => ($InstanceID ? IPS_GetName($InstanceID) : $Device['name']),
-                'instanceID'          => ($InstanceID ? $InstanceID : 0),
+            $values[] = [
+                'host'                => $host,
+                'model'               => $device['model'],
+                'name'                => ($instanceID ? IPS_GetName($instanceID) : $device['name']),
+                'instanceID'          => ($instanceID ? $instanceID : 0),
                 'create'              => [
                     [
                         'moduleID'         => \Cast\Device\GUID,
                         'configuration'    => [
-                            \Cast\Device\Property::Open             => true
+                            \Cast\Device\Property::OPEN             => true
                         ]
                     ],
                     [
                         'moduleID'         => \Cast\IO\GUID,
                         'configuration'    => [
-                            \Cast\IO\Property::Host        => $Host,
-                            \Cast\IO\Property::Port        => $Device['port'],
-                            \Cast\IO\Property::UseSSL      => true,
-                            \Cast\IO\Property::VerifyHost  => false,
-                            \Cast\IO\Property::VerifyPeer  => false,
+                            \Cast\IO\Property::HOST         => $host,
+                            \Cast\IO\Property::PORT         => $device['port'],
+                            \Cast\IO\Property::USE_SSL      => true,
+                            \Cast\IO\Property::VERIFY_HOST  => false,
+                            \Cast\IO\Property::VERIFY_PEER  => false,
 
                         ]
                     ]
                 ]
             ];
-            if ($InstanceID !== false) {
-                unset($IPSDevices[$InstanceID]);
+            if ($instanceID !== false) {
+                unset($ipsDevices[$instanceID]);
             }
         }
-        $this->SendDebug('oldIPSDevices', $IPSDevices, 0);
-        foreach ($IPSDevices as $InstanceID => $Host) {
-            $Values[] = [
-                'host'                => $Host,
+        $this->SendDebug('oldIPSDevices', $ipsDevices, 0);
+        foreach ($ipsDevices as $instanceID => $host) {
+            $values[] = [
+                'host'                => $host,
                 'model'               => 'unknown',
-                'name'                => IPS_GetName($InstanceID),
-                'instanceID'          => $InstanceID,
+                'name'                => IPS_GetName($instanceID),
+                'instanceID'          => $instanceID,
             ];
         }
-        $this->SendDebug('Values', $Values, 0);
-        return $Values;
+        $this->SendDebug('Values', $values, 0);
+        return $values;
     }
 
     private function GetCastDevices(): array
     {
         $mDNSInstanceIDs = IPS_GetInstanceListByModuleID(\Cast\mDNS\GUID);
+        if (count($mDNSInstanceIDs) == 0) {
+            $this->SendDebug('mDNS', 'no DNS-SD instance found', 0);
+            return [];
+        }
         $resultServiceTypes = ZC_QueryServiceType($mDNSInstanceIDs[0], '_googlecast._tcp', 'local.');
         if (!$resultServiceTypes) {
             return [];
         }
         $this->SendDebug('mDNS resultServiceTypes', $resultServiceTypes, 0);
-        $Devices = [];
+        $devices = [];
         foreach ($resultServiceTypes as $device) {
-            $CastDevice = [];
+            $castDevice = [];
 
             $this->SendDebug('mDNS QueryService', $device['Name'] . ' ' . $device['Type'] . ' ' . $device['Domain'] . '.', 0);
             $deviceInfo = ZC_QueryService($mDNSInstanceIDs[0], $device['Name'], '_googlecast._tcp', 'local.');
@@ -106,56 +110,65 @@ class ChromeCastDiscovery extends IPSModuleStrict
             if (empty($deviceInfo)) {
                 continue;
             }
-            $CastDevice['Port'] = $deviceInfo[0]['Port'];
+            $castDevice['Port'] = $deviceInfo[0]['Port'];
 
-            foreach ($deviceInfo[0]['TXTRecords'] as $Line) {
-                $Data = explode('=', $Line);
-                $Typ = strtoupper(array_shift($Data));
-                if (self::filterTXT($Typ)) {
-                    $CastDevice[$Typ] = implode('=', $Data);
+            foreach ($deviceInfo[0]['TXTRecords'] as $line) {
+                $data = explode('=', $line);
+                $typ = strtoupper(array_shift($data));
+                if (self::FilterTXT($typ)) {
+                    $castDevice[$typ] = implode('=', $data);
                 }
             }
 
             if (empty($deviceInfo[0]['IPv4'])) { //IPv4 und IPv6 sind vertauscht
-                $CastDevice['IPv4'] = $deviceInfo[0]['IPv6'];
+                $castDevice['IPv4'] = $deviceInfo[0]['IPv6'] ?? [];
             } else {
-                $CastDevice['IPv4'] = $deviceInfo[0]['IPv4'];
+                $castDevice['IPv4'] = $deviceInfo[0]['IPv4'];
                 if (isset($deviceInfo[0]['IPv6'])) {
-                    foreach ($deviceInfo[0]['IPv6'] as $Index => $ipv6) {
-                        $CastDevice['IPv6'][] = '[' . $ipv6 . ']';
-                        $Hostname = gethostbyaddr($ipv6);
-                        if ($Hostname != $ipv6) {
-                            $CastDevice['Hostname'][$Index] = $Hostname;
+                    foreach ($deviceInfo[0]['IPv6'] as $index => $ipv6) {
+                        $castDevice['IPv6'][] = '[' . $ipv6 . ']';
+                        $hostname = gethostbyaddr($ipv6);
+                        if ($hostname != $ipv6) {
+                            $castDevice['Hostname'][$index] = $hostname;
                         }
-                        $CastDevice['Hostname'][20 + $Index] = '[' . $ipv6 . ']';
+                        $castDevice['Hostname'][20 + $index] = '[' . $ipv6 . ']';
                     }
                 }
             }
-            foreach ($CastDevice['IPv4'] as $Index => $ipv4) {
-                $Hostname = gethostbyaddr($ipv4);
-                if ($Hostname != $ipv4) {
-                    $CastDevice['Hostname'][10 + $Index] = $Hostname;
+            foreach ($castDevice['IPv4'] ?? [] as $index => $ipv4) {
+                $hostname = gethostbyaddr($ipv4);
+                if ($hostname != $ipv4) {
+                    $castDevice['Hostname'][10 + $index] = $hostname;
                 }
-                $CastDevice['Hostname'][((strpos($ipv4, '169.254') === 0) ? 10 : 0) + 30 + $Index] = $ipv4;
+                $castDevice['Hostname'][((strpos($ipv4, '169.254') === 0) ? 10 : 0) + 30 + $index] = $ipv4;
             }
-            ksort($CastDevice['Hostname']);
-            $this->SendDebug('Device', $CastDevice, 0);
-            array_push($Devices, ['name' => (isset($CastDevice['Name']) ? $CastDevice['Name'] : 'Cast Device(' . $CastDevice['Hostname'][0] . ')'), 'model' => (isset($CastDevice['ModelName']) ? $CastDevice['ModelName'] : 'unknown'), 'port'=>$CastDevice['Port'], 'host'=>$CastDevice['Hostname']]);
+            // Ohne bekannte Adresse kann keine Instanz angelegt werden
+            if (empty($castDevice['Hostname'])) {
+                continue;
+            }
+            ksort($castDevice['Hostname']);
+            $this->SendDebug('Device', $castDevice, 0);
+            array_push($devices, [
+                'name'  => $castDevice['Name'] ?? 'Cast Device (' . reset($castDevice['Hostname']) . ')',
+                'model' => $castDevice['ModelName'] ?? 'unknown',
+                'port'  => $castDevice['Port'],
+                'host'  => $castDevice['Hostname']
+            ]);
         }
-        return $Devices;
+        return $devices;
     }
 
-    private static function FilterTXT(string &$Typ): bool
+    private static function FilterTXT(string &$typ): bool
     {
-        switch ($Typ) {
+        switch ($typ) {
             case 'ID':
-                $Typ = 'DeviceId';
+                $typ = 'DeviceId';
                 return true;
             case 'MD':
-                $Typ = 'ModelName';
+                $typ = 'ModelName';
                 return true;
             case 'FN':
-                $Typ = 'Name';
+                $typ = 'Name';
                 return true;
         }
         return false;
@@ -163,17 +176,17 @@ class ChromeCastDiscovery extends IPSModuleStrict
 
     private function GetIPSInstances(): array
     {
-        $InstanceIDList = IPS_GetInstanceListByModuleID(\Cast\Device\GUID);
-        $Devices = [];
-        foreach ($InstanceIDList as $InstanceID) {
-            $IO = IPS_GetInstance($InstanceID)['ConnectionID'];
-            if ($IO > 0) {
-                $parentGUID = IPS_GetInstance($IO)['ModuleInfo']['ModuleID'];
+        $instanceIDList = IPS_GetInstanceListByModuleID(\Cast\Device\GUID);
+        $devices = [];
+        foreach ($instanceIDList as $instanceID) {
+            $io = IPS_GetInstance($instanceID)['ConnectionID'];
+            if ($io > 0) {
+                $parentGUID = IPS_GetInstance($io)['ModuleInfo']['ModuleID'];
                 if ($parentGUID == \Cast\IO\GUID) {
-                    $Devices[$InstanceID] = strtolower(IPS_GetProperty($IO, \Cast\IO\Property::Host));
+                    $devices[$instanceID] = strtolower(IPS_GetProperty($io, \Cast\IO\Property::HOST));
                 }
             }
         }
-        return $Devices;
+        return $devices;
     }
 }

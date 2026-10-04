@@ -98,6 +98,16 @@
             "suffix": "px",
             "minimum": 60,
             "maximum": 512
+        },
+        {
+            "name": "enableRawDuration",
+            "type": "CheckBox",
+            "caption": "Create variable for duration in seconds"
+        },
+        {
+            "name": "enableRawPosition",
+            "type": "CheckBox",
+            "caption": "Create variable for position in seconds"
         }
     ],
     "actions": [
@@ -120,6 +130,12 @@
             "type": "Button",
             "caption": "Close app",
             "onClick": "CCAST_CloseApp($id);"
+        },
+        {
+            "type": "Button",
+            "caption": "Reset learned apps",
+            "confirm": "Remove all automatically learned apps from the app list?",
+            "onClick": "IPS_RequestAction($id, 'ResetKnownApps', true);"
         },
         {
             "type": "TestCenter"

@@ -19,11 +19,14 @@ Auffinden von Chrome Cast fähigen Geräten im Netzwerk.
 - [4. Einrichten der Instanzen in IP-Symcon](#4-einrichten-der-instanzen-in-ip-symcon)
 - [5. Statusvariablen](#5-statusvariablen)
 - [6. Visualisierung](#6-visualisierung)
+  - [Kachel Visualisierung](#kachel-visualisierung)
+  - [WebFront Visualisierung](#webfront-visualisierung)
 - [7. PHP-Befehlsreferenz](#7-php-befehlsreferenz)
-- [8. Anhang](#8-anhang)
+- [8. Aktionen](#8-aktionen)
+- [9. Anhang](#9-anhang)
   - [1. Changelog](#1-changelog)
   - [2. Spenden](#2-spenden)
-- [9. Lizenz](#9-lizenz)
+- [10. Lizenz](#10-lizenz)
 
 ## 1. Funktionsumfang
 
@@ -62,8 +65,6 @@ Hierüber wird dann direkt die Konfigurationsseite der zum Gerät gehörigen Ins
 Keine Statusvariablen verfügbar.  
 
 ## 6. Visualisierung
-
-Keine Visualisierung verfügbar.  
 
 ### Kachel Visualisierung
 

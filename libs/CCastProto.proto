@@ -1,0 +1,18 @@
+// CastV2 CastMessage (vgl. cast_channel.proto, dort proto2 mit Pflichtfeldern).
+// protocol_version und PayloadType sind "optional" (explicit presence),
+// damit der Wert 0 beim Setzen auch serialisiert wird.
+syntax = "proto3";
+
+package symcon.ccast;
+
+option php_namespace = "Chromecast";
+option php_metadata_namespace = "Chromecast";
+
+message CCastMessage {
+    optional int32 protocol_version = 1;
+    string SourceId = 2;
+    string ReceiverId = 3;
+    string Urn = 4;
+    optional int32 PayloadType = 5;
+    string Payload = 6;
+}

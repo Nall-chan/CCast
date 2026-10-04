@@ -17,12 +17,11 @@ Einbinden eines Chrome Cast Gerätes in Symcon.
 - [2. Voraussetzungen](#2-voraussetzungen)
 - [3. Software-Installation](#3-software-installation)
 - [4. Einrichten der Instanzen in IP-Symcon](#4-einrichten-der-instanzen-in-ip-symcon)
-- [5. Statusvariablen und Profile](#5-statusvariablen-und-profile)
-  - [Statusvariablen](#statusvariablen)
+- [5. Statusvariablen](#5-statusvariablen)
   - [Profile](#profile)
 - [6. Visualisierung](#6-visualisierung)
-  - [1. Kachel-Visu](#1-kachel-visu)
-  - [2. WebFront](#2-webfront)
+  - [Kachel Visualisierung](#kachel-visualisierung)
+  - [WebFront Visualisierung](#webfront-visualisierung)
 - [7. PHP-Befehlsreferenz](#7-php-befehlsreferenz)
   - [Allgemeine Befehle](#allgemeine-befehle)
   - [Streaming von Inhalten](#streaming-von-inhalten)
@@ -58,13 +57,20 @@ __Konfigurationsseite__:
 
 ![Config](imgs/Config.png)  
 
-## 5. Statusvariablen und Profile
+| Eigenschaft                                | Beschreibung                                                                 |
+| ------------------------------------------ | ---------------------------------------------------------------------------- |
+| Aktiv                                      | Verbindung zum Gerät aufbauen                                                |
+| Erweiterte Power-On Überwachung            | Prüft zyklisch (Ping oder Bedingung) ob das Gerät erreichbar ist und verbindet dann automatisch |
+| Breite vom Media Bild                      | Breite in Pixel des Medienbildes (Cover)                                     |
+| Breite vom App Icon                        | Breite in Pixel des App Icons                                                |
+| Variable für Dauer in Sekunden anlegen     | Legt die Statusvariable `Dauer in Sekunden` an                               |
+| Variable für Position in Sekunden anlegen  | Legt die Statusvariable `Position in Sekunden` an                            |
+
+## 5. Statusvariablen
 
 Die Statusvariablen/Kategorien werden automatisch angelegt. Das Löschen einzelner kann zu Fehlfunktionen führen.
 
 ![Variables](imgs/ObjectTree.png)  
-
-### Statusvariablen
 
 | Name                 | Typ     | Beschreibung                                            |
 | -------------------- | ------- | ------------------------------------------------------- |
@@ -72,10 +78,9 @@ Die Statusvariablen/Kategorien werden automatisch angelegt. Das Löschen einzeln
 | Lautstärke           | integer | Lautstärke in %                                         |
 | Stumm                | bool    | Stummschaltung                                          |
 | Wiedergabestatus     | integer | Status bei Medienwiedergabe                             |
-| Wiederholung         | string  | Wiederholung                                            |
-| Dauer in Sekunden    | integer | Dauer der aktuellen Wiedergabe in Sekunden              |
+| Dauer in Sekunden    | integer | Dauer der aktuellen Wiedergabe in Sekunden (optional)   |
 | Dauer                | string  | Dauer der aktuellen Wiedergabe als Text                 |
-| Position in Sekunden | integer | Position der aktuellen Wiedergabe in Sekunden           |
+| Position in Sekunden | integer | Position der aktuellen Wiedergabe in Sekunden (optional)|
 | Position             | string  | Position der aktuellen Wiedergabe als Text              |
 | Fortschritt          | float   | Aktueller Fortschritt der aktuellen Wiedergabe          |
 | Titel                | string  | Titel der aktuellen Wiedergabe                          |
@@ -86,17 +91,20 @@ Die Statusvariablen/Kategorien werden automatisch angelegt. Das Löschen einzeln
 
 | Name                      | Typ    | Genutzt durch                                  |
 | ------------------------- | ------ | ---------------------------------------------- |
-| CCast.AppId.`<InstanzID>` | string | Enthält alle für dieses Gerät verfügbaren Apps |
+| CCast.AppId.`<InstanzID>` | string | Enthält die bekannten Apps sowie alle vom Gerät gemeldeten, automatisch gelernten Apps |
+
+Meldet das Gerät eine App, welche noch nicht im Profil enthalten ist, wird diese automatisch aufgenommen (Name vom Gerät bzw. aus der öffentlichen App-Konfiguration von Google).  
+Die gelernten Apps bleiben dauerhaft erhalten und können über die Schaltfläche `Gelernte Apps zurücksetzen` im Konfigurationsformular entfernt werden.  
 
 ## 6. Visualisierung
 
-### 1. Kachel-Visu
+### Kachel Visualisierung
 
 Die Funktionalität, die das Modul in der Kachel Visu bietet.  
 
 ![Tile](imgs/Tile.png)  
 
-### 2. WebFront
+### WebFront Visualisierung
 
 Die Funktionalität, die das Modul im WebFront bietet.  
 
@@ -106,11 +114,12 @@ Die Funktionalität, die das Modul im WebFront bietet.
 
 ### Allgemeine Befehle  
 
-`bool CCAST_SetVolumen(integer $InstanzID, float $Level);`  
-Setzt die Lautstärke auf den Wert von `Level`.  
+`bool CCAST_SetVolume(integer $InstanzID, float $Level);`  
+Setzt die Lautstärke auf den Wert von `Level` (0.0 bis 1.0).  
+Die bisherige Funktion `CCAST_SetVolumen` ist weiterhin als veralteter Alias vorhanden.  
 
 Beispiel:  
-`CCAST_SetVolumen(12345, 0.5);`  
+`CCAST_SetVolume(12345, 0.5);`  
 Lautstärke auf 50% setzen.  
 
 ---  
@@ -256,6 +265,22 @@ Identisch zu `CCAST_LoadMediaURL`, jedoch wird hier eine `contentId` für die en
 
 ---  
 
+`bool CCAST_PlayYouTube(integer $InstanzID, string $VideoId, string $ListId = '');`  
+Startet die YouTube App auf dem Chromecast und spielt das angegebene Video bzw. die Playlist ab.  
+
+Beispiel:  
+`CCAST_PlayYouTube(12345, 'dQw4w9WgXcQ', '');`  
+
+---  
+
+`bool CCAST_PlayYouTubeMusic(integer $InstanzID, string $VideoId, string $ListId = '');`  
+Startet die YouTube Music App auf dem Chromecast und spielt den angegebenen Titel bzw. die Playlist ab.  
+
+Beispiel:  
+`CCAST_PlayYouTubeMusic(12345, 'dQw4w9WgXcQ', 'PL12345678');`  
+
+---  
+
 `bool CCAST_LoadMediaQueue(integer $InstanzID, array $Items, bool $Repeat, integer $StartIndex, bool $Autoplay);`
 Lädt eine Liste von `Items` als Wiedergabeliste.  
 Jeder Eintrag von `Items` muss mindestens das Feld `contentUrl` enthalten.  
@@ -339,14 +364,15 @@ Wiedergabe 10 Sekunden zurückspulen.
 Steuert die Art der Wiederholung einer Wiedergabeliste.  
 Wird nicht von allen Quellen unterstützt!  
 
-| Werte von Mode   |
-| ---------------- |
-| QUEUE_REPEAT_OFF |
-| QUEUE_REPEAT_ONE |
-| QUEUE_REPEAT_ALL |
+| Werte von Mode         |
+| ---------------------- |
+| REPEAT_OFF             |
+| REPEAT_SINGLE          |
+| REPEAT_ALL             |
+| REPEAT_ALL_AND_SHUFFLE |
 
 Beispiel:  
-`CCAST_SetRepeat(12345, 'QUEUE_REPEAT_ALL');`  
+`CCAST_SetRepeat(12345, 'REPEAT_ALL');`  
 
 ---  
 

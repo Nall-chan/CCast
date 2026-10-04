@@ -3,8 +3,8 @@
 declare(strict_types=1);
 
 namespace {
-    $AutoLoader = new AutoLoaderCCast('Google\Protobuf');
-    $AutoLoader->register();
+    $autoLoader = new AutoLoaderCCast('Google\Protobuf');
+    $autoLoader->Register();
 
     class AutoLoaderCCast
     {
@@ -15,15 +15,15 @@ namespace {
             $this->namespace = $namespace;
         }
 
-        public function register()
+        public function Register()
         {
-            spl_autoload_register([$this, 'loadClass']);
+            spl_autoload_register([$this, 'LoadClass']);
         }
 
-        public function loadClass($className)
+        public function LoadClass($className)
         {
-            $LibPath = __DIR__ . DIRECTORY_SEPARATOR;
-            $file = $LibPath . str_replace('\\', DIRECTORY_SEPARATOR, $className) . '.php';
+            $libPath = __DIR__ . DIRECTORY_SEPARATOR;
+            $file = $libPath . str_replace('\\', DIRECTORY_SEPARATOR, $className) . '.php';
             if (file_exists($file)) {
                 require_once $file;
             }
@@ -43,12 +43,12 @@ namespace Cast\IO{
 
     class Property
     {
-        public const Open = 'Open';
-        public const Host = 'Host';
-        public const Port = 'Port';
-        public const UseSSL = 'UseSSL';
-        public const VerifyHost = 'VerifyHost';
-        public const VerifyPeer = 'VerifyPeer';
+        public const OPEN = 'Open';
+        public const HOST = 'Host';
+        public const PORT = 'Port';
+        public const USE_SSL = 'UseSSL';
+        public const VERIFY_HOST = 'VerifyHost';
+        public const VERIFY_PEER = 'VerifyPeer';
     }
 }
 
@@ -58,55 +58,66 @@ namespace Cast\Device
 
     class Property
     {
-        public const Open = 'Open';
-        public const Watchdog = 'Watchdog';
-        public const Interval = 'Interval';
-        public const ConditionType = 'ConditionType';
-        public const WatchdogCondition = 'WatchdogCondition';
-        public const MediaSizeWidth = 'MediaSizeWidth';
-        public const AppIconSizeWidth = 'AppIconSizeWidth';
-        public const EnableRawDuration = 'enableRawDuration';
-        public const EnableRawPosition = 'enableRawPosition';
+        public const OPEN = 'Open';
+        public const WATCHDOG = 'Watchdog';
+        public const INTERVAL = 'Interval';
+        public const CONDITION_TYPE = 'ConditionType';
+        public const WATCHDOG_CONDITION = 'WatchdogCondition';
+        public const MEDIA_SIZE_WIDTH = 'MediaSizeWidth';
+        public const APP_ICON_SIZE_WIDTH = 'AppIconSizeWidth';
+        public const ENABLE_RAW_DURATION = 'enableRawDuration';
+        public const ENABLE_RAW_POSITION = 'enableRawPosition';
     }
 
     class VariableIdent
     {
-        public const AppId = 'appId';
-        public const Volume = 'level';
-        public const Muted = 'muted';
-        public const PlayerState = 'playerState';
-        public const RepeatMode = 'repeatMode';
-        public const DurationRaw = 'durationRaw';
-        public const PositionRaw = 'positionRaw';
-        public const Duration = 'duration';
-        public const Position = 'position';
-        public const CurrentTime = 'currentTime';
-        public const Title = 'title';
-        public const Artist = 'artist';
-        public const Collection = 'collection';
+        public const APP_ID = 'appId';
+        public const VOLUME = 'level';
+        public const MUTED = 'muted';
+        public const PLAYER_STATE = 'playerState';
+        public const REPEAT_MODE = 'repeatMode';
+        public const DURATION_RAW = 'durationRaw';
+        public const POSITION_RAW = 'positionRaw';
+        public const DURATION = 'duration';
+        public const POSITION = 'position';
+        public const CURRENT_TIME = 'currentTime';
+        public const TITLE = 'title';
+        public const ARTIST = 'artist';
+        public const COLLECTION = 'collection';
 
         /**
          * @todo Fehlt noch
          */
-        public const Shuffle = 'shuffleMode';
+        public const SHUFFLE = 'shuffleMode';
+    }
+
+    class Attribute
+    {
+        public const KNOWN_APPS = 'KnownApps';
     }
 
     class Timer
     {
-        public const Watchdog = 'WatchdogTimer';
-        public const ProgressState = 'ProgressState';
-        public const KeepAlive = 'KeepAlive';
+        public const WATCHDOG = 'WatchdogTimer';
+        public const PROGRESS_STATE = 'ProgressState';
+        public const KEEP_ALIVE = 'KeepAlive';
     }
 
     class TimeConvert
     {
-        public static function ConvertSeconds(float $Time)
+        /**
+         * Wandelt Sekunden in einen Zeitstring (hh:mm:ss bzw. mm:ss) um.
+         *
+         * @param float $time Zeit in Sekunden
+         * @return string Formatierte Zeit
+         */
+        public static function ConvertSeconds(float $time): string
         {
-            if ($Time > 3600) {
-                return sprintf('%02d:%02d:%02d', ($Time / 3600), ($Time / 60 % 60), $Time % 60);
-            } else {
-                return sprintf('%02d:%02d', ($Time / 60 % 60), $Time % 60);
+            $seconds = (int) $time;
+            if ($seconds > 3600) {
+                return sprintf('%02d:%02d:%02d', intdiv($seconds, 3600), intdiv($seconds, 60) % 60, $seconds % 60);
             }
+            return sprintf('%02d:%02d', intdiv($seconds, 60) % 60, $seconds % 60);
         }
     }
 }
@@ -114,12 +125,16 @@ namespace Cast\Device
 namespace Cast\Youtube{
     const BASE_URL = 'https://www.youtube.com/';
     const LOUNGE_TOKEN_URL = BASE_URL . 'api/lounge/pairing/get_lounge_token_batch';
+    // Lounge-Theme des Bildschirms (cl = klassisches YouTube)
+    const THEME = 'cl';
 
 }
 
 namespace Cast\YoutubeMusic{
     const BASE_URL = 'https://music.youtube.com/';
     const LOUNGE_TOKEN_URL = BASE_URL . 'api/lounge/pairing/get_lounge_token_batch';
+    // Lounge-Theme des Bildschirms (m = YouTube Music), sonst antwortet die Lounge mit unmatchingTheme
+    const THEME = 'm';
 
 }
 
@@ -128,111 +143,145 @@ namespace Cast
     class Urn
     {
         //public const AuthNamespace = 'urn:x-cast:com.google.cast.tp.deviceauth';
-        public const ConnectionNamespace = 'urn:x-cast:com.google.cast.tp.connection';
-        public const DashCast = 'urn:x-cast:es.offd.dashcast';
-        public const HeartbeatNamespace = 'urn:x-cast:com.google.cast.tp.heartbeat';
-        public const ReceiverNamespace = 'urn:x-cast:com.google.cast.receiver';
-        public const MediaNamespace = 'urn:x-cast:com.google.cast.media';
-        public const MultiZoneNamespace = 'urn:x-cast:com.google.cast.multizone';
+        public const CONNECTION_NAMESPACE = 'urn:x-cast:com.google.cast.tp.connection';
+        public const DASH_CAST = 'urn:x-cast:es.offd.dashcast';
+        public const HEARTBEAT_NAMESPACE = 'urn:x-cast:com.google.cast.tp.heartbeat';
+        public const RECEIVER_NAMESPACE = 'urn:x-cast:com.google.cast.receiver';
+        public const MEDIA_NAMESPACE = 'urn:x-cast:com.google.cast.media';
+        public const MULTI_ZONE_NAMESPACE = 'urn:x-cast:com.google.cast.multizone';
         //urn:x-cast:com.google.cast.remotecontrol
         //urn:x-cast:com.google.cast.system
-        public const BroadcastNamespace = 'urn:x-cast:com.google.cast.broadcast';
+        public const BROADCAST_NAMESPACE = 'urn:x-cast:com.google.cast.broadcast';
         public const SSE = 'urn:x-cast:com.google.cast.sse'; //Backdrop
-        public const DefaultMediaRender = 'urn:x-cast:com.google.cast.cac';
+        public const DEFAULT_MEDIA_RENDER = 'urn:x-cast:com.google.cast.cac';
         // remoting
         // webrtc
-        public const YouTube = 'urn:x-cast:com.google.youtube.mdx';
+        public const YOUTUBE = 'urn:x-cast:com.google.youtube.mdx';
     }
 
     class Apps
     {
-        public const AndroidNativeApp = 'AndroidNativeApp';
-        public const Audible = '25456794'; //no response on GetAppAvailability
-        public const Backdrop = 'E8C28D3C';
-        public const CastBridge = '46C1A819';
-        public const ChromeMirroring = '0F5096E8';
-        public const DashCast = '5C3F0A3C';
-        public const DefaultMediaReceiver = 'CC1AD845'; //'85CDB22F' old
-        public const DisneyPlus = 'C3DE6BC2';
-        public const EurekaIdleScreen = 'EurekaIdleScreen'; //not connected to internet
-        public const GooglePhotos = '96084372'; //no response on GetAppAvailability
-        public const GooglePodcast = '3DFCDBD1';
-        public const Netflix = 'CA5E8412';
-        public const ScreenMirroring = '674A0243';
-        public const Spotify = 'CC32E753';
-        public const YouTube = '233637DE';
-        public const YouTubeMusic = '2DB7CC49';
+        public const ANDROID_NATIVE_APP = 'AndroidNativeApp';
+        public const AUDIBLE = '25456794'; //no response on GetAppAvailability
+        public const BACKDROP = 'E8C28D3C';
+        public const CAST_BRIDGE = '46C1A819';
+        public const CHROME_MIRRORING = '0F5096E8';
+        public const DASH_CAST = '5C3F0A3C';
+        public const DEFAULT_MEDIA_RECEIVER = 'CC1AD845'; //'85CDB22F' old
+        public const DISNEY_PLUS = 'C3DE6BC2';
+        public const EUREKA_IDLE_SCREEN = 'EurekaIdleScreen'; //not connected to internet
+        public const GOOGLE_PHOTOS = '96084372'; //no response on GetAppAvailability
+        public const GOOGLE_PODCAST = '3DFCDBD1';
+        public const NETFLIX = 'CA5E8412';
+        public const SCREEN_MIRRORING = '674A0243';
+        public const SPOTIFY = 'CC32E753';
+        public const YOUTUBE = '233637DE';
+        public const YOUTUBE_MUSIC = '2DB7CC49';
 
-        public static $Apps =
+        /**
+         * Öffentliche App-Konfiguration von Google (liefert u.a. display_name)
+         */
+        public const APP_CONFIG_URL = 'https://clients3.google.com/cast/chromecast/device/app?a=';
+
+        public const APPS =
             [
-                self::AndroidNativeApp      => 'Android App',
-                self::Audible               => 'Audible',
-                self::Backdrop              => 'Backdrop',
-                self::CastBridge            => 'AirConnect & CastBridge',
-                self::ChromeMirroring       => 'Chrome Mirroring',
-                self::DashCast              => 'Dashcast',
-                self::DefaultMediaReceiver  => 'Default Media Receiver',
-                self::DisneyPlus            => 'Disney+',
-                self::EurekaIdleScreen      => 'Idle Screen',
-                self::GooglePhotos          => 'Google Photos',
-                self::GooglePodcast         => 'Google Podcast',
-                self::Netflix               => 'Netflix',
-                self::ScreenMirroring       => 'Screen Mirroring',
-                self::Spotify               => 'Spotify',
-                self::YouTube               => 'YouTube',
-                self::YouTubeMusic          => 'YouTube Music',
+                self::ANDROID_NATIVE_APP      => 'Android App',
+                self::AUDIBLE                 => 'Audible',
+                self::BACKDROP                => 'Backdrop',
+                self::CAST_BRIDGE             => 'AirConnect & CastBridge',
+                self::CHROME_MIRRORING        => 'Chrome Mirroring',
+                self::DASH_CAST               => 'Dashcast',
+                self::DEFAULT_MEDIA_RECEIVER  => 'Default Media Receiver',
+                self::DISNEY_PLUS             => 'Disney+',
+                self::EUREKA_IDLE_SCREEN      => 'Idle Screen',
+                self::GOOGLE_PHOTOS           => 'Google Photos',
+                self::GOOGLE_PODCAST          => 'Google Podcast',
+                self::NETFLIX                 => 'Netflix',
+                self::SCREEN_MIRRORING        => 'Screen Mirroring',
+                self::SPOTIFY                 => 'Spotify',
+                self::YOUTUBE                 => 'YouTube',
+                self::YOUTUBE_MUSIC           => 'YouTube Music',
             ];
 
-        public static function getAllAppsAsProfileAssoziation(): array
+        /**
+         * Liefert die Assoziationen für das App-Profil.
+         *
+         * @param array $knownApps Zusätzlich gelernte Apps (AppId => Name), überschreiben keine eingebauten Apps
+         * @return array Assoziationen [Wert, Name, Icon, Farbe]
+         */
+        public static function GetAllAppsAsProfileAssociation(array $knownApps = []): array
         {
+            $apps = self::APPS + $knownApps;
             return array_map(function ($k, $v)
             {
-                return [$k, $v, '', -1];
-            }, array_keys(self::$Apps), array_values(self::$Apps));
+                return [(string) $k, (string) $v, '', -1];
+            }, array_keys($apps), array_values($apps));
+        }
+
+        /**
+         * Ermittelt den Namen einer App über die öffentliche App-Konfiguration von Google.
+         *
+         * @param string $appId AppId
+         * @return string Name der App oder Leerstring
+         */
+        public static function GetAppNameFromGoogle(string $appId): string
+        {
+            if (!preg_match('/^[0-9A-Za-z_\-]+$/', $appId)) {
+                return '';
+            }
+            $response = @Sys_GetURLContentEx(self::APP_CONFIG_URL . $appId, ['Timeout' => 3000]);
+            if (!is_string($response) || ($response === '')) {
+                return '';
+            }
+            // Antwort beginnt mit einem XSSI-Schutz-Präfix ( )]}' ) in der ersten Zeile
+            $json = substr($response, (int) strpos($response, '{'));
+            $data = json_decode($json, true);
+            return is_array($data) ? (string) ($data['display_name'] ?? '') : '';
         }
     }
 
     class Commands
     {
-        public const Ping = 'PING'; //heartbeat
-        public const Pong = 'PONG'; //heartbeat
+        public const PING = 'PING'; //heartbeat
+        public const PONG = 'PONG'; //heartbeat
 
-        public const Connect = 'CONNECT'; // connection
-        public const Close = 'CLOSE'; // connection
+        public const CONNECT = 'CONNECT'; // connection
+        public const CLOSE = 'CLOSE'; // connection
 
-        public const GetStatus = 'GET_STATUS'; //Receiver, multizone, Media (to transportid)
-        public const ReceiverStatus = 'RECEIVER_STATUS'; // Receiver
-        public const MediaStatus = 'MEDIA_STATUS';  // nur wenn aktiv
-        public const MultiZoneStatus = 'MULTIZONE_STATUS'; // multizone
+        public const GET_STATUS = 'GET_STATUS'; //Receiver, multizone, Media (to transportid)
+        public const RECEIVER_STATUS = 'RECEIVER_STATUS'; // Receiver
+        public const MEDIA_STATUS = 'MEDIA_STATUS';  // nur wenn aktiv
+        public const MULTI_ZONE_STATUS = 'MULTIZONE_STATUS'; // multizone
 
-        public const GetAppAvailability = 'GET_APP_AVAILABILITY'; // Receiver appId as array
-        public const AppUnavailable = 'APP_UNAVAILABLE';
-        public const AppAvailable = 'APP_AVAILABLE';
+        public const GET_APP_AVAILABILITY = 'GET_APP_AVAILABILITY'; // Receiver appId as array
+        public const APP_UNAVAILABLE = 'APP_UNAVAILABLE';
+        public const APP_AVAILABLE = 'APP_AVAILABLE';
 
         public const RPC = 'RPC';
-        public const Broadcast = 'APPLICATION_BROADCAST';
-        public const Launch = 'LAUNCH'; //Receiver
-        public const Load = 'LOAD';
-        public const LaunchStatus = 'LAUNCH_STATUS';
-        public const LaunchError = 'LAUNCH_ERROR';
-        public const Offer = 'OFFER';
-        public const Answer = 'ANSWER';
+        public const BROADCAST = 'APPLICATION_BROADCAST';
+        public const LAUNCH = 'LAUNCH'; //Receiver
+        public const STOP = 'STOP'; //Receiver, beendet eine App (sessionId)
+        public const LOAD = 'LOAD';
+        public const LAUNCH_STATUS = 'LAUNCH_STATUS';
+        public const LAUNCH_ERROR = 'LAUNCH_ERROR';
+        public const OFFER = 'OFFER';
+        public const ANSWER = 'ANSWER';
 
-        public const SetVolume = 'SET_VOLUME';
-        public const UserAction = 'USER_ACTION';
+        public const SET_VOLUME = 'SET_VOLUME';
+        public const USER_ACTION = 'USER_ACTION';
 
         //??
-        public const GetCapabilities = 'GET_CAPABILITIES';
-        public const CapabilitiesResponse = 'CAPABILITIES_RESPONSE';
+        public const GET_CAPABILITIES = 'GET_CAPABILITIES';
+        public const CAPABILITIES_RESPONSE = 'CAPABILITIES_RESPONSE';
 
-        public const StatusResponse = 'STATUS_RESPONSE';
-        public const InvalidPlayerState = 'INVALID_PLAYER_STATE';
-        public const LoadFailed = 'LOAD_FAILED';
-        public const LoadCancelled = 'LOAD_CANCELLED';
-        public const InvalidRequest = 'INVALID_REQUEST';
-        public const Error = 'ERROR';
-        public const Presentation = 'PRESENTATION';
-        public const Other = 'OTHER';
+        public const STATUS_RESPONSE = 'STATUS_RESPONSE';
+        public const INVALID_PLAYER_STATE = 'INVALID_PLAYER_STATE';
+        public const LOAD_FAILED = 'LOAD_FAILED';
+        public const LOAD_CANCELLED = 'LOAD_CANCELLED';
+        public const INVALID_REQUEST = 'INVALID_REQUEST';
+        public const ERROR = 'ERROR';
+        public const PRESENTATION = 'PRESENTATION';
+        public const OTHER = 'OTHER';
 
         /*
             { TEXT: "TEXT", AUDIO: "AUDIO", VIDEO: "VIDEO" });
@@ -274,84 +323,85 @@ namespace Cast
             TRACKS_CHANGED: "TRACKS_CHANGED",
          */
 
-        public static function GetType(string $Command): array
+        public static function GetType(string $command): array
         {
-            return ['type' => $Command];
+            return ['type' => $command];
         }
     }
     class MediaCommands
     {
-        public const Play = 'PLAY';
-        public const Pause = 'PAUSE';
-        public const Stop = 'STOP';
-        public const Seek = 'SEEK';
-        public const QueueUpdate = 'QUEUE_UPDATE';
-        public const StreamVolume = 'STREAM_VOLUME';  //check
-        public const StreamMute = 'STREAM_MUTE';  //check
-        public const Next = 'QUEUE_NEXT';
-        public const Prev = 'QUEUE_PREV';
-        public const Shuffle = 'QUEUE_SHUFFLE';
-        public const RepeatAll = 'QUEUE_REPEAT_ALL';
-        public const RepeatOne = 'QUEUE_REPEAT_ONE';
-        public const EditTracks = 'INBAND_TRACK_ADDED';  //check
-        public const PlaybackRate = 'PLAYBACK_RATE';  //check SET_PLAYBACK_RATE
-        public const StreamTransfer = 'STREAM_TRANSFER';
+        public const PLAY = 'PLAY';
+        public const PAUSE = 'PAUSE';
+        public const STOP = 'STOP';
+        public const SEEK = 'SEEK';
+        public const QUEUE_UPDATE = 'QUEUE_UPDATE';
+        public const STREAM_VOLUME = 'STREAM_VOLUME';  //check
+        public const STREAM_MUTE = 'STREAM_MUTE';  //check
+        public const NEXT = 'QUEUE_NEXT';
+        public const PREV = 'QUEUE_PREV';
+        public const SHUFFLE = 'QUEUE_SHUFFLE';
+        public const REPEAT_ALL = 'QUEUE_REPEAT_ALL';
+        public const REPEAT_ONE = 'QUEUE_REPEAT_ONE';
+        public const EDIT_TRACKS = 'INBAND_TRACK_ADDED';  //check
+        public const PLAYBACK_RATE = 'PLAYBACK_RATE';  //check SET_PLAYBACK_RATE
+        public const STREAM_TRANSFER = 'STREAM_TRANSFER';
 
-        public const Like = 'LIKE';
-        public const Dislike = 'DISLIKE';
-        public const Follow = 'FOLLOW';
-        public const Unfollow = 'UNFOLLOW';
-        public const Flag = 'FLAG';
-        public const SkipAd = 'SKIP_AD';  //check
-        public const Lyrics = 'LYRICS';
+        public const LIKE = 'LIKE';
+        public const DISLIKE = 'DISLIKE';
+        public const FOLLOW = 'FOLLOW';
+        public const UNFOLLOW = 'UNFOLLOW';
+        public const FLAG = 'FLAG';
+        public const SKIP_AD = 'SKIP_AD';  //check
+        public const LYRICS = 'LYRICS';
 
         //public const EditTracks = 'EDIT_TRACKS';
 
-        public static $MediaCommands = [
-            1       => self::Pause,
-            2       => self::Seek,
-            4       => self::StreamVolume,
-            8       => self::StreamMute,
-            64      => self::Next,
-            128     => self::Prev,
-            256     => self::Shuffle,
-            512     => self::SkipAd,
-            1024    => self::RepeatAll,
-            2048    => self::RepeatOne,
-            4096    => self::EditTracks,
-            8192    => self::PlaybackRate,
-            16384   => self::Like,
-            32768   => self::Dislike,
-            65536   => self::Follow,
-            131072  => self::Unfollow,
-            262144  => self::StreamTransfer,
-            524288  => self::Lyrics,
+        public const MEDIA_COMMANDS = [
+            1       => self::PAUSE,
+            2       => self::SEEK,
+            4       => self::STREAM_VOLUME,
+            8       => self::STREAM_MUTE,
+            64      => self::NEXT,
+            128     => self::PREV,
+            256     => self::SHUFFLE,
+            512     => self::SKIP_AD,
+            1024    => self::REPEAT_ALL,
+            2048    => self::REPEAT_ONE,
+            4096    => self::EDIT_TRACKS,
+            8192    => self::PLAYBACK_RATE,
+            16384   => self::LIKE,
+            32768   => self::DISLIKE,
+            65536   => self::FOLLOW,
+            131072  => self::UNFOLLOW,
+            262144  => self::STREAM_TRANSFER,
+            524288  => self::LYRICS,
         ];
 
-        public static function ListAvailableCommands(int $Available): array
+        public static function ListAvailableCommands(int $available): array
         {
-            $Commands = [];
-            foreach (self::$MediaCommands as $CommandInt => $CommandValue) {
-                if (self::isCommandAvailable($Available, $CommandInt)) {
-                    $Commands[] = $CommandValue;
+            $commands = [];
+            foreach (self::MEDIA_COMMANDS as $commandInt => $commandValue) {
+                if (self::IsCommandAvailable($available, $commandInt)) {
+                    $commands[] = $commandValue;
                 }
             }
-            return $Commands;
+            return $commands;
         }
 
-        public static function isCommandAvailable(int $Available, int $Command): bool
+        public static function IsCommandAvailable(int $available, int $command): bool
         {
-            return ($Command & $Available) == $Command;
+            return ($command & $available) == $command;
             //return self::$MediaCommands[]
         }
     }
 
     class Queue
     {
-        public const RepeatOff = 'REPEAT_OFF';
-        public const RepeatAll = 'REPEAT_ALL';
-        public const RepeatOne = 'REPEAT_ONE';
-        public static $MediaItemKeys = [
+        public const REPEAT_OFF = 'REPEAT_OFF';
+        public const REPEAT_ALL = 'REPEAT_ALL';
+        public const REPEAT_ONE = 'REPEAT_SINGLE';
+        public const REPEAT_ALL_AND_SHUFFLE = 'REPEAT_ALL_AND_SHUFFLE';
+        public const MEDIA_ITEM_KEYS = [
             'contentUrl'  => '',
             'streamType'  => 'BUFFERED',
             'contentType' => 'video/mp4'
@@ -359,10 +409,11 @@ namespace Cast
     }
     class PlayerState
     {
-        public const Idle = 'IDLE';
-        public const Play = 'PLAYING';
-        public const Pause = 'PAUSED';
-        public const Buffering = 'BUFFERING';
+        public const IDLE = 'IDLE';
+        public const PLAY = 'PLAYING';
+        public const PAUSE = 'PAUSED';
+        public const BUFFERING = 'BUFFERING';
+        public const LOADING = 'LOADING'; // nur in extendedStatus
 
         /*
             +        'IDLE': 'IDLE',
@@ -375,32 +426,32 @@ namespace Cast
             +        'ERROR': 'ERROR'
          */
 
-        public static $StateToInt =
+        public const STATE_TO_INT =
             [
-                self::Idle              => 1,
-                self::Play              => 2,
-                self::Pause             => 3,
+                self::IDLE              => 1,
+                self::PLAY              => 2,
+                self::PAUSE             => 3,
             ];
 
-        public static $IntToAction =
+        public const INT_TO_ACTION =
             [
-                0 => \Cast\MediaCommands::Prev,
-                1 => \Cast\MediaCommands::Stop,
-                2 => \Cast\MediaCommands::Play,
-                3 => \Cast\MediaCommands::Pause,
-                4 => \Cast\MediaCommands::Next
+                0 => \Cast\MediaCommands::PREV,
+                1 => \Cast\MediaCommands::STOP,
+                2 => \Cast\MediaCommands::PLAY,
+                3 => \Cast\MediaCommands::PAUSE,
+                4 => \Cast\MediaCommands::NEXT
             ];
     }
 
     class Payload
     {
-        public const isString = 0;
-        public const isBinary = 1;
+        public const IS_STRING = 0;
+        public const IS_BINARY = 1;
 
-        public static function makePayload(string $Command, array $Payload = []): string
+        public static function MakePayload(string $command, array $payload = []): string
         {
             return json_encode(
-                array_merge(Commands::GetType($Command), $Payload)
+                array_merge(Commands::GetType($command), $payload)
             );
         }
     }
@@ -409,61 +460,71 @@ namespace Cast
     {
         private \Chromecast\CCastMessage $Message;
 
-        public function __construct(string|array $Data)
+        public function __construct(string|array $data)
         {
             $this->Message = new \Chromecast\CCastMessage();
-            if (is_array($Data)) {
-                //$this->Message->setProtocolVersion(0);
-                $this->Message->setSourceId('sender-' . (string) $Data[0]);
-                $this->Message->setReceiverId($Data[1]);
-                $this->Message->setUrn($Data[2]);
-                $this->Message->setPayloadType($Data[3]);
-                $this->Message->setPayload($Data[4]);
+            if (is_array($data)) {
+                // Pflichtfelder des CastV2-Protokolls immer setzen (werden dann auch mit 0 serialisiert)
+                $this->Message->setProtocolVersion(0);
+                $this->Message->setSourceId('sender-' . (string) $data[0]);
+                $this->Message->setReceiverId($data[1]);
+                $this->Message->setUrn($data[2]);
+                $this->Message->setPayloadType($data[3]);
+                $this->Message->setPayload($data[4]);
                 //$this->Message = new \Chromecast\CCastMessage($Data);
             } else {
                 //$this->Message = new \Chromecast\CCastMessage();
-                $this->Message->mergeFromString($Data);
+                $this->Message->mergeFromString($data);
             }
         }
 
-        public function __debug(): array
+        public function GetDebugData(): array
         {
-            $Payload = $this->Message->getPayload();
+            $payload = $this->Message->getPayload();
             return [
                 'SourceId'    => $this->Message->getSourceId(),
                 'ReceiverId'  => $this->Message->getReceiverId(),
                 'Urn'         => $this->Message->getUrn(),
                 'PayloadType' => $this->Message->getPayloadType(),
-                'Payload'     => $Payload, //($Payload[0] != '{') ? $Payload : json_decode($Payload, true)
+                'Payload'     => $payload, //($Payload[0] != '{') ? $Payload : json_decode($Payload, true)
                 '-------'     => '------------------------------'
             ];
         }
 
-        public function getUrn(): string
+        public function GetUrn(): string
         {
             return $this->Message->getUrn();
         }
 
-        public function getPayload(): ?array
+        /**
+         * Liefert den JSON-Payload als Array.
+         *
+         * @return array|null Null bei leerem, binärem oder nicht dekodierbarem Payload
+         */
+        public function GetPayload(): ?array
         {
-            $Payload = $this->Message->getPayload();
-            return ($Payload != '') ? (($Payload[0] != '{') ? $Payload : json_decode($Payload, true)) : '';
+            $payload = $this->Message->getPayload();
+            if (($payload === '') || ($payload[0] != '{')) {
+                return null;
+            }
+            $decoded = json_decode($payload, true);
+            return is_array($decoded) ? $decoded : null;
         }
 
-        public function getSourceId(): string
+        public function GetSourceId(): string
         {
             return $this->Message->getSourceId();
         }
 
-        public function getReceiverId(): string
+        public function GetReceiverId(): string
         {
             return $this->Message->getReceiverId();
         }
 
-        public function getMessage(): string
+        public function GetMessage(): string
         {
-            $Data = $this->Message->serializeToString();
-            return pack('N', strlen($Data)) . $Data;
+            $data = $this->Message->serializeToString();
+            return pack('N', strlen($data)) . $data;
             //return $Data;
         }
     }
