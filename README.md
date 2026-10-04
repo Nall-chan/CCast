@@ -1,7 +1,7 @@
 [![SDK](https://img.shields.io/badge/Symcon-PHPModul-red.svg)](https://www.symcon.de/service/dokumentation/entwicklerbereich/sdk-tools/sdk-php/)
 [![Module Version](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2FNall-chan%2FCCast%2Frefs%2Fheads%2Fmain%2Flibrary.json&query=%24.version&label=Modul%20Version&color=blue)](https://community.symcon.de/t/modul-chromecast-google-cast/141614)
 [![Symcon Version](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2FNall-chan%2FCCast%2Frefs%2Fheads%2Fmain%2Flibrary.json&query=%24.compatibility.version&suffix=%3E&label=Symcon%20Version&color=green)](https://www.symcon.de/de/service/dokumentation/installation/migrationen/v80-v81-q3-2025/)  
-[![License](https://img.shields.io/badge/License-CC%20BY--NC--SA%204.0-green.svg)](https://creativecommons.org/licenses/by-nc-sa/4.0/)
+[![License](https://img.shields.io/badge/License-Custom--NC--SA-green.svg)](#6-lizenz)
 [![Check Style](https://github.com/Nall-chan/CCast/workflows/Check%20Style/badge.svg)](https://github.com/Nall-chan/CCast/actions)
 [![Run Tests](https://github.com/Nall-chan/CCast/workflows/Run%20Tests/badge.svg)](https://github.com/Nall-chan/CCast/actions)  
 [![PayPal.Me](https://img.shields.io/badge/PayPal-Me-lightblue.svg)](#3-spenden)
@@ -38,9 +38,10 @@ Anbindung und Steuerung von Google Cast (ChromeCast) fähigen Geräten in IP-Sym
 
 ### Zur Library
 
-Diese Library befindet sich noch in der Testphase.  
-Der Funktionsumfang kann, auch je nach Gerät, sich noch stark verändern.  
-Ebenso ist es möglich das noch Fehlermeldungen auftreten oder gar die Verbindung zum Gerät verloren geht.
+> [!WARNING]
+> Diese Library befindet sich noch in der Testphase.  
+> Der Funktionsumfang kann, auch je nach Gerät, sich noch stark verändern.  
+> Ebenso ist es möglich das noch Fehlermeldungen auftreten oder gar die Verbindung zum Gerät verloren geht.
 
 Feedback hierzu ist im Symcon Forum im entsprechenden Thread gerne erwünscht.  
 
@@ -59,8 +60,11 @@ Die Steuerung von nativen Android Apps auf diesen Geräten wird nur eingeschrän
 
 ## 3. Software-Installation
   
-  Über den 'Module-Store' in IPS das Modul `ChromeCast` hinzufügen.  
-   **Bei kommerzieller Nutzung (z.B. als Errichter oder Integrator) wenden Sie sich bitte an den Autor.**  
+Über den 'Module-Store' in IPS das Modul `ChromeCast` hinzufügen.  
+
+> [!IMPORTANT]
+> Bei kommerzieller Nutzung (z.B. als Errichter oder Integrator) wenden Sie sich bitte an den Autor.
+
 ![Module-Store](imgs/install.png)  
 
 ## 4. Enthaltende Module
@@ -83,6 +87,37 @@ Die Steuerung von nativen Android Apps auf diesen Geräten wird nur eingeschrän
 ----------
 
 ### 2. Changelog
+
+**Version 0.30 (in Entwicklung):**  
+
+- PHP-Befehle ergänzt um:  
+  - `CCAST_PlayYouTube` / `CCAST_PlayYouTubeMusic` (YouTube Lounge API, Titel und Playlisten)
+  - `CCAST_SetVolume` (ersetzt `CCAST_SetVolumen`, alter Name bleibt als Alias erhalten)
+- Konfiguration: Statusvariablen `Dauer in Sekunden` und `Position in Sekunden` sind jetzt im Formular abschaltbar
+- Statusvariablen `Aktive App`, `Dauer`, `Position`, `Dauer in Sekunden`, `Position in Sekunden` und `Sammlung` haben jetzt Profile mit Icon (Sekunden mit Einheit `s`)
+- Wiedergabestatus: Unterstützt die App Pause, wird nur Play/Pause ohne Stop angeboten (vorher vertauscht)
+- `CCAST_SetRepeat` erwartet die Cast-Werte `REPEAT_OFF`, `REPEAT_SINGLE`, `REPEAT_ALL`, `REPEAT_ALL_AND_SHUFFLE`
+- Fehler bei Bedienaktionen (z.B. Gerät nicht verbunden, Timeout, Fehlermeldung vom Gerät) werden im Frontend angezeigt, bei Skripten und internen Abläufen als Fehlermeldung ausgegeben
+- Vom Gerät gemeldete, unbekannte Apps werden automatisch in das App-Profil aufgenommen (zurücksetzbar im Formular)
+- Protobuf-Bibliothek auf google/protobuf 5.36.2 aktualisiert (PHP 8.5 kompatibel)
+- Lizenz geändert: von CC BY-NC-SA 4.0 auf eigene Lizenz (Custom NC-SA, siehe [LICENSE](LICENSE))
+- Wiedergabestatus wird im Leerlauf korrekt für die Media-Kachel dargestellt
+- Künstler wird bei Bedarf aus `albumArtist` bzw. `subtitle` ermittelt (z.B. YouTube Music Videos)
+- `CCAST_PlayYouTube` / `CCAST_PlayYouTubeMusic` melden einen Fehler, wenn weder `VideoId` noch `ListId` übergeben wird
+- Fehlerbehebungen:
+  - `LAUNCH_ERROR` bzw. `LOAD_FAILED` vom Gerät wurden als Erfolg gewertet
+  - `CCAST_CloseApp` hat nur die Verbindung zur App getrennt, die App lief weiter
+  - Nach dem Beenden der Verbindung durch das Gerät liefen Folgebefehle ins Timeout
+  - Nach dem Laden einer Wiedergabe blieb der Wiedergabestatus teilweise auf Stop stehen
+  - Zu viele Statusabfragen beim Puffern bzw. Titelwechsel
+  - `CCAST_DisplayWebsite` meldete nach 10 Sekunden fälschlich einen Fehler
+  - Nach dem Laden einer Instanz wurde ohne aktive Verbindung kurzzeitig `Connected to ChromeCast` gemeldet und eine Statusabfrage gesendet
+  - Warnungen `Socket ist nicht verbunden`, wenn ohne aktive Verbindung gesendet wurde
+  - Mögliche Abbrüche (TypeError) bei leeren oder binären Cast-Nachrichten, fehlgeschlagenen Bild-Downloads, unbekannten Wiedergabezuständen und Positionen mit Nachkommastellen
+  - Die Bedienbarkeit von Position/Fortschritt sowie das Profil vom Wiedergabestatus wurden nach dem Ende einer Wiedergabe nicht zurückgesetzt
+  - Die Option für die Variable `Position in Sekunden` wurde nicht ausgewertet
+  - App-Icon als Ersatzbild wurde nicht geladen
+  - Discovery: Absicherung bei fehlender DNS-SD Instanz oder Geräten ohne Adresse
 
 **Version 0.20:**  
 
@@ -111,4 +146,4 @@ Die Steuerung von nativen Android Apps auf diesen Geräten wird nur eingeschrän
 ## 6. Lizenz
 
   IPS-Modul:  
-  [CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/)  
+  [Custom NC-SA](LICENSE)  

@@ -91,6 +91,24 @@ namespace Cast\Device
         public const SHUFFLE = 'shuffleMode';
     }
 
+    class Profile
+    {
+        public const APP_ID_PREFIX = 'CCast.AppId.';
+        public const DURATION_SECONDS = 'CCast.DurationSeconds';
+        public const DURATION = 'CCast.Duration';
+        public const POSITION = 'CCast.Position';
+        public const COLLECTION = 'CCast.Collection';
+        public const SUFFIX_SECONDS = ' s';
+    }
+
+    class ProfileIcon
+    {
+        public const APP_ID = 'TV';
+        public const DURATION = 'Hourglass';
+        public const POSITION = 'Clock';
+        public const COLLECTION = 'Music';
+    }
+
     class Attribute
     {
         public const KNOWN_APPS = 'KnownApps';

@@ -58,6 +58,7 @@
             "Text length should be less than 200 characters": "Der Text sollte kürzer als 200 Zeichen sein",
             "No screenId received from YouTube Receiver": "Keine screenId vom YouTube-Receiver empfangen",
             "Could not retrieve YouTube Lounge Token": "YouTube Lounge Token konnte nicht abgerufen werden",
+            "No VideoId or ListId given": "Keine VideoId oder ListId angegeben",
             "This module is free for non-commercial use,\r\nDonations in support of the author are accepted here:": "Dieses Modul ist für die nicht kommerzielle Nutzung kostenlos,\r\nSchenkungen als Unterstützung für den Autor werden hier akzeptiert:"
         }
     }

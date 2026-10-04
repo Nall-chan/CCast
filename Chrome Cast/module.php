@@ -42,6 +42,7 @@ eval('declare(strict_types=1);namespace Cast {?>' . file_get_contents(__DIR__ . 
  * @method void SetValueFloat(string $ident, float $value)
  * @method void SetValueInteger(string $ident, int $value)
  * @method void SetValueString(string $ident, string $value)
+ * @method void RegisterProfileInteger(string $Name, string $Icon, string $Prefix, string $Suffix, int $MinValue, int $MaxValue, float $StepSize)
  * @method void RegisterProfileStringEx(string $Name, string $Icon, string $Prefix, string $Suffix, array $Associations)
  * @method void UnregisterProfile(string $Name)
  * @method bool SendDebug(string $message, mixed $data, int $format)
@@ -198,7 +199,11 @@ class ChromeCast extends IPSModuleStrict
 
         parent::ApplyChanges();
         $i = 0;
-        $this->RegisterProfileStringEx($this->GetAppProfileName(), '', '', '', \Cast\Apps::GetAllAppsAsProfileAssociation($this->GetKnownApps()));
+        $this->RegisterProfileStringEx($this->GetAppProfileName(), \Cast\Device\ProfileIcon::APP_ID, '', '', \Cast\Apps::GetAllAppsAsProfileAssociation($this->GetKnownApps()));
+        $this->RegisterProfileInteger(\Cast\Device\Profile::DURATION_SECONDS, \Cast\Device\ProfileIcon::DURATION, '', \Cast\Device\Profile::SUFFIX_SECONDS, 0, 0, 0);
+        $this->RegisterProfileStringEx(\Cast\Device\Profile::DURATION, \Cast\Device\ProfileIcon::DURATION, '', '', []);
+        $this->RegisterProfileStringEx(\Cast\Device\Profile::POSITION, \Cast\Device\ProfileIcon::POSITION, '', '', []);
+        $this->RegisterProfileStringEx(\Cast\Device\Profile::COLLECTION, \Cast\Device\ProfileIcon::COLLECTION, '', '', []);
         $this->RegisterVariableString(\Cast\Device\VariableIdent::APP_ID, $this->Translate('Active app'), $this->GetAppProfileName(), ++$i);
         $this->EnableAction(\Cast\Device\VariableIdent::APP_ID);
 
@@ -213,25 +218,33 @@ class ChromeCast extends IPSModuleStrict
         //$this->RegisterVariableString(\Cast\Device\VariableIdent::REPEAT_MODE, $this->Translate('Repeat'), '', ++$i);
 
         if ($this->ReadPropertyBoolean(\Cast\Device\Property::ENABLE_RAW_DURATION)) {
-            $this->RegisterVariableInteger(\Cast\Device\VariableIdent::DURATION_RAW, $this->Translate('Duration in seconds'), '', ++$i);
+            $this->RegisterVariableInteger(\Cast\Device\VariableIdent::DURATION_RAW, $this->Translate('Duration in seconds'), \Cast\Device\Profile::DURATION_SECONDS, ++$i);
         } else {
             $this->UnregisterVariable(\Cast\Device\VariableIdent::DURATION_RAW);
         }
 
         if ($this->ReadPropertyBoolean(\Cast\Device\Property::ENABLE_RAW_POSITION)) {
-            $this->RegisterVariableInteger(\Cast\Device\VariableIdent::POSITION_RAW, $this->Translate('Position in seconds'), '', ++$i);
+            $this->RegisterVariableInteger(\Cast\Device\VariableIdent::POSITION_RAW, $this->Translate('Position in seconds'), [
+                'PRESENTATION' => VARIABLE_PRESENTATION_VALUE_INPUT,
+                'SUFFIX'       => \Cast\Device\Profile::SUFFIX_SECONDS
+            ], ++$i);
+            // Die Werteingabe kennt kein Icon, daher am Objekt setzen (nur wenn der Nutzer keines gewählt hat)
+            $positionRawId = $this->GetIDForIdent(\Cast\Device\VariableIdent::POSITION_RAW);
+            if (IPS_GetObject($positionRawId)['ObjectIcon'] == '') {
+                IPS_SetIcon($positionRawId, \Cast\Device\ProfileIcon::POSITION);
+            }
         } else {
             $this->UnregisterVariable(\Cast\Device\VariableIdent::POSITION_RAW);
         }
 
-        $this->RegisterVariableString(\Cast\Device\VariableIdent::DURATION, $this->Translate('Duration'), '', ++$i);
-        $this->RegisterVariableString(\Cast\Device\VariableIdent::POSITION, $this->Translate('Position'), '', ++$i);
+        $this->RegisterVariableString(\Cast\Device\VariableIdent::DURATION, $this->Translate('Duration'), \Cast\Device\Profile::DURATION, ++$i);
+        $this->RegisterVariableString(\Cast\Device\VariableIdent::POSITION, $this->Translate('Position'), \Cast\Device\Profile::POSITION, ++$i);
 
         $this->RegisterVariableFloat(\Cast\Device\VariableIdent::CURRENT_TIME, $this->Translate('Progress'), '~Progress', ++$i);
 
         $this->RegisterVariableString(\Cast\Device\VariableIdent::TITLE, $this->Translate('Title'), '~Song', ++$i);
         $this->RegisterVariableString(\Cast\Device\VariableIdent::ARTIST, $this->Translate('Artist'), '~Artist', ++$i);
-        $this->RegisterVariableString(\Cast\Device\VariableIdent::COLLECTION, $this->Translate('Collection'), '', ++$i);
+        $this->RegisterVariableString(\Cast\Device\VariableIdent::COLLECTION, $this->Translate('Collection'), \Cast\Device\Profile::COLLECTION, ++$i);
 
         if (IPS_GetKernelRunlevel() != KR_READY) {
             $this->RegisterMessage(0, IPS_KERNELSTARTED);
@@ -701,6 +714,10 @@ class ChromeCast extends IPSModuleStrict
     }
     public function PlayYouTube(string $videoId, string $listId = ''): bool
     {
+        if (($videoId === '') && ($listId === '')) {
+            $this->ReportError($this->Translate('No VideoId or ListId given'));
+            return false;
+        }
         if ($this->ActualApp != \Cast\Apps::YOUTUBE || $this->TransportId == '') {
             if (!$this->LaunchApp(\Cast\Apps::YOUTUBE)) {
                 return false;
@@ -712,6 +729,10 @@ class ChromeCast extends IPSModuleStrict
 
     public function PlayYouTubeMusic(string $videoId, string $listId = ''): bool
     {
+        if (($videoId === '') && ($listId === '')) {
+            $this->ReportError($this->Translate('No VideoId or ListId given'));
+            return false;
+        }
         if ($this->ActualApp != \Cast\Apps::YOUTUBE_MUSIC || $this->TransportId == '') {
             if (!$this->LaunchApp(\Cast\Apps::YOUTUBE_MUSIC)) {
                 return false;
@@ -1766,7 +1787,7 @@ class ChromeCast extends IPSModuleStrict
      */
     private function GetAppProfileName(): string
     {
-        return 'CCast.AppId.' . (string) $this->InstanceID;
+        return \Cast\Device\Profile::APP_ID_PREFIX . (string) $this->InstanceID;
     }
 
     /**
@@ -1810,7 +1831,7 @@ class ChromeCast extends IPSModuleStrict
     private function ResetKnownApps(): void
     {
         $this->WriteAttributeString(\Cast\Device\Attribute::KNOWN_APPS, '[]');
-        $this->RegisterProfileStringEx($this->GetAppProfileName(), '', '', '', \Cast\Apps::GetAllAppsAsProfileAssociation());
+        $this->RegisterProfileStringEx($this->GetAppProfileName(), \Cast\Device\ProfileIcon::APP_ID, '', '', \Cast\Apps::GetAllAppsAsProfileAssociation());
         echo $this->Translate('Learned apps were reset');
     }
 
@@ -1856,6 +1877,12 @@ class ChromeCast extends IPSModuleStrict
         $this->SetValue(\Cast\Device\VariableIdent::PLAYER_STATE, $state);
     }
 
+    /**
+     * Passt Profil und Bedienbarkeit der Statusvariablen an die vom Gerät gemeldeten Media-Befehle an.
+     * Kann pausiert werden, wird ein Profil ohne Stop (Play/Pause) genutzt, sonst eines mit Stop.
+     *
+     * @param int $mediaCommand Bitmaske supportedMediaCommands
+     */
     private function UpdateControlsByMediaCommand(int $mediaCommand): void
     {
         $commands = \Cast\MediaCommands::ListAvailableCommands($mediaCommand);
@@ -1864,19 +1891,11 @@ class ChromeCast extends IPSModuleStrict
             return;
         }
         $this->SupportedMediaCommands = $mediaCommand;
-        $profile = '~PlaybackPreviousNextNoStop';
-        if (!in_array(\Cast\MediaCommands::PAUSE, $commands)) {
-            if (in_array(\Cast\MediaCommands::NEXT, $commands)) {
-                $profile = '~PlaybackPreviousNextNoStop';
-            } else {
-                $profile = '~PlaybackNoStop';
-            }
+        $hasNext = in_array(\Cast\MediaCommands::NEXT, $commands);
+        if (in_array(\Cast\MediaCommands::PAUSE, $commands)) {
+            $profile = $hasNext ? '~PlaybackPreviousNextNoStop' : '~PlaybackNoStop';
         } else {
-            if (in_array(\Cast\MediaCommands::NEXT, $commands)) {
-                $profile = '~PlaybackPreviousNext';
-            } else {
-                $profile = '~Playback';
-            }
+            $profile = $hasNext ? '~PlaybackPreviousNext' : '~Playback';
         }
         $this->RegisterVariableInteger(\Cast\Device\VariableIdent::PLAYER_STATE, $this->Translate('Player State'), $profile, self::POSITION_PLAYER_STATE);
 

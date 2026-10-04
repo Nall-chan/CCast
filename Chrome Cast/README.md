@@ -1,7 +1,7 @@
 [![SDK](https://img.shields.io/badge/Symcon-PHPModul-red.svg)](https://www.symcon.de/service/dokumentation/entwicklerbereich/sdk-tools/sdk-php/)
 [![Module Version](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2FNall-chan%2FCCast%2Frefs%2Fheads%2Fmain%2Flibrary.json&query=%24.version&label=Modul%20Version&color=blue)](https://community.symcon.de/t/modul-chromecast-google-cast/141614)
 [![Symcon Version](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2FNall-chan%2FCCast%2Frefs%2Fheads%2Fmain%2Flibrary.json&query=%24.compatibility.version&suffix=%3E&label=Symcon%20Version&color=green)](https://www.symcon.de/de/service/dokumentation/installation/migrationen/v80-v81-q3-2025/)  
-[![License](https://img.shields.io/badge/License-CC%20BY--NC--SA%204.0-green.svg)](https://creativecommons.org/licenses/by-nc-sa/4.0/)
+[![License](https://img.shields.io/badge/License-Custom--NC--SA-green.svg)](#10-lizenz)
 [![Check Style](https://github.com/Nall-chan/CCast/workflows/Check%20Style/badge.svg)](https://github.com/Nall-chan/CCast/actions)
 [![Run Tests](https://github.com/Nall-chan/CCast/workflows/Run%20Tests/badge.svg)](https://github.com/Nall-chan/CCast/actions)  
 [![PayPal.Me](https://img.shields.io/badge/PayPal-Me-lightblue.svg)](#2-spenden)
@@ -48,8 +48,10 @@ Einbinden eines Chrome Cast Gerätes in Symcon.
 
 ## 4. Einrichten der Instanzen in IP-Symcon
 
- Es wird empfohlen neue Instanzen über das [Discovery-Modul](../Chrome%20Cast%20Discovery/README.md) zu erstellen.
- Unter 'Instanz hinzufügen' kann das 'Chrome Cast'-Modul mithilfe des Schnellfilters gefunden werden.  
+> [!TIP]
+> Es wird empfohlen neue Instanzen über das [Discovery-Modul](../Chrome%20Cast%20Discovery/README.md) zu erstellen.
+
+Unter 'Instanz hinzufügen' kann das 'Chrome Cast'-Modul mithilfe des Schnellfilters gefunden werden.  
 
 - Weitere Informationen zum Hinzufügen von Instanzen in der [Dokumentation der Instanzen](https://www.symcon.de/service/dokumentation/konzepte/instanzen/#Instanz_hinzufügen)
 
@@ -57,18 +59,37 @@ __Konfigurationsseite__:
 
 ![Config](imgs/Config.png)  
 
-| Eigenschaft                                | Beschreibung                                                                 |
-| ------------------------------------------ | ---------------------------------------------------------------------------- |
-| Aktiv                                      | Verbindung zum Gerät aufbauen                                                |
-| Erweiterte Power-On Überwachung            | Prüft zyklisch (Ping oder Bedingung) ob das Gerät erreichbar ist und verbindet dann automatisch |
-| Breite vom Media Bild                      | Breite in Pixel des Medienbildes (Cover)                                     |
-| Breite vom App Icon                        | Breite in Pixel des App Icons                                                |
-| Variable für Dauer in Sekunden anlegen     | Legt die Statusvariable `Dauer in Sekunden` an                               |
-| Variable für Position in Sekunden anlegen  | Legt die Statusvariable `Position in Sekunden` an                            |
+| Eigenschaft                                        | Name                | Typ     | Standardwert | Beschreibung                                                                                                   |
+| -------------------------------------------------- | ------------------- | ------- | ------------ | -------------------------------------------------------------------------------------------------------------- |
+| Aktiv                                              | `Open`              | boolean | `false`      | Verbindung zum Gerät aufbauen                                                                                  |
+| Erweiterte Power-On Überwachung: Prüfe alle        | `Watchdog`          | boolean | `true`       | Prüft zyklisch, ob das Gerät erreichbar ist, und verbindet dann automatisch                                    |
+| Erweiterte Power-On Überwachung: Intervall         | `Interval`          | integer | `5`          | Intervall der Prüfung in Sekunden (mindestens 5)                                                               |
+| Erweiterte Power-On Überwachung: Bedingung         | `ConditionType`     | integer | `0`          | Art der Prüfung: `0` = Netzwerk Ping, `1` = Erweiterte Bedingung                                               |
+| Erweiterte Power-On Überwachung: Erweiterte Bedingung | `WatchdogCondition` | string  | `''`         | Bedingung als JSON-String (Format wie bei [`IPS_IsConditionPassing`](https://www.symcon.de/en/service/documentation/command-reference/management-events/ips-isconditionpassing/)); am einfachsten über das Formular erstellen, nur bei `ConditionType` = `1` |
+| Breite vom Media Bild                              | `MediaSizeWidth`    | integer | `512`        | Breite in Pixel des Medienbildes (Cover), 60 bis 3000                                                          |
+| Breite vom App Icon                                | `AppIconSizeWidth`  | integer | `90`         | Breite in Pixel des App Icons, 60 bis 512                                                                      |
+| Variable für Dauer in Sekunden anlegen             | `enableRawDuration` | boolean | `true`       | Legt die Statusvariable `Dauer in Sekunden` an                                                                 |
+| Variable für Position in Sekunden anlegen          | `enableRawPosition` | boolean | `true`       | Legt die Statusvariable `Position in Sekunden` an                                                              |
+
+Die Eigenschaften können auch per Skript geändert werden. Die Änderungen werden erst mit `IPS_ApplyChanges` übernommen:  
+
+```php
+IPS_SetProperty(12345, 'Interval', 30);
+IPS_SetProperty(12345, 'enableRawPosition', false);
+IPS_ApplyChanges(12345);
+```
+
+Die Adresse des Gerätes wird nicht hier, sondern im übergeordneten `Client Socket` eingetragen: Eigenschaften `Host` (string) und `Port` (integer, bei ChromeCast-Geräten üblicherweise `8009`). Bei Anlage über die Discovery werden beide Werte automatisch gesetzt.  
+
+> [!IMPORTANT]
+> `Open` sowie die SSL-Einstellungen des `Client Socket` werden von dieser Instanz verwaltet und sollten dort nicht verändert werden.
 
 ## 5. Statusvariablen
 
-Die Statusvariablen/Kategorien werden automatisch angelegt. Das Löschen einzelner kann zu Fehlfunktionen führen.
+Die Statusvariablen/Kategorien werden automatisch angelegt.
+
+> [!WARNING]
+> Das Löschen einzelner Statusvariablen kann zu Fehlfunktionen führen.
 
 ![Variables](imgs/ObjectTree.png)  
 
@@ -92,6 +113,12 @@ Die Statusvariablen/Kategorien werden automatisch angelegt. Das Löschen einzeln
 | Name                      | Typ    | Genutzt durch                                  |
 | ------------------------- | ------ | ---------------------------------------------- |
 | CCast.AppId.`<InstanzID>` | string | Enthält die bekannten Apps sowie alle vom Gerät gemeldeten, automatisch gelernten Apps |
+| CCast.DurationSeconds     | integer | Dauer in Sekunden                             |
+| CCast.Duration            | string  | Dauer                                         |
+| CCast.Position            | string  | Position                                      |
+| CCast.Collection          | string  | Sammlung                                      |
+
+Der Wiedergabestatus nutzt die Systemprofile `~Playback…`: Unterstützt die App Pause, werden nur Play/Pause angeboten (`~PlaybackNoStop` bzw. `~PlaybackPreviousNextNoStop`), sonst zusätzlich Stop. Zurück/Weiter erscheinen nur, wenn die App sie unterstützt.  
 
 Meldet das Gerät eine App, welche noch nicht im Profil enthalten ist, wird diese automatisch aufgenommen (Name vom Gerät bzw. aus der öffentlichen App-Konfiguration von Google).  
 Die gelernten Apps bleiben dauerhaft erhalten und können über die Schaltfläche `Gelernte Apps zurücksetzen` im Konfigurationsformular entfernt werden.  
@@ -114,26 +141,43 @@ Die Funktionalität, die das Modul im WebFront bietet.
 
 ### Allgemeine Befehle  
 
-`bool CCAST_SetVolume(integer $InstanzID, float $Level);`  
+```php
+bool CCAST_SetVolume(integer $InstanzID, float $Level);
+```
+
 Setzt die Lautstärke auf den Wert von `Level` (0.0 bis 1.0).  
 Die bisherige Funktion `CCAST_SetVolumen` ist weiterhin als veralteter Alias vorhanden.  
 
 Beispiel:  
-`CCAST_SetVolume(12345, 0.5);`  
+
+```php
+CCAST_SetVolume(12345, 0.5);
+```
+
 Lautstärke auf 50% setzen.  
 
 ---  
 
-`bool CCAST_SetMute(integer $InstanzID, bool $Mute);`  
+```php
+bool CCAST_SetMute(integer $InstanzID, bool $Mute);
+```
+
 Setzt die Stummschaltung.  
 
 Beispiel:  
-`CCAST_SetMute(12345, true);`  
+
+```php
+CCAST_SetMute(12345, true);
+```
+
 Gerät stumm schalten.  
 
 ---  
 
-`bool CCAST_LaunchApp(integer $InstanzID, string $AppId);`  
+```php
+bool CCAST_LaunchApp(integer $InstanzID, string $AppId);
+```
+
 Startet eine Cast App.  
 
 Kleine Auswahl von AppIds:  
@@ -155,86 +199,114 @@ Kleine Auswahl von AppIds:
 | YouTubeMusic         | 2DB7CC49 |
 
 Beispiel:  
-`CCAST_LaunchApp(12345, 'CC1AD845');`  
+
+```php
+CCAST_LaunchApp(12345, 'CC1AD845');
+```
+
 Default Media Render starten.  
 
 ---  
 
-`bool CCAST_GetAppAvailability(integer $InstanzID);`  
-Aktuell nicht verfügbar  
+```php
+bool CCAST_GetAppAvailability(integer $InstanzID);
+```
+
+> [!NOTE]
+> Aktuell nicht verfügbar.
 
 Beispiel:  
-`CCAST_GetAppAvailability(12345);`  
+
+```php
+CCAST_GetAppAvailability(12345);
+```
 
 ---  
 
-`bool CCAST_CloseApp(integer $InstanzID);`  
+```php
+bool CCAST_CloseApp(integer $InstanzID);
+```
+
 Beendet die aktuelle Cast App.  
 Wird z.B. bei Android TV Geräten eine native App ausgeführt, so hat der Befehl darauf keinen Einfluss.  
 
 Beispiel:  
-`CCAST_CloseApp(12345);`  
+
+```php
+CCAST_CloseApp(12345);
+```
 
 ---  
 
-`bool CCAST_RequestState(integer $InstanzID);`  
+```php
+bool CCAST_RequestState(integer $InstanzID);
+```
+
 Frage den aktuellen Status ab.  
 
 Beispiel:  
-`CCAST_RequestState(12345);`  
+
+```php
+CCAST_RequestState(12345);
+```
 
 ---  
 
-`bool CCAST_RequestIdleState(integer $InstanzID);`  
+```php
+bool CCAST_RequestIdleState(integer $InstanzID);
+```
+
 Fragt den aktuellen Ruhemodus ab.  
 
 Beispiel:  
-`CCAST_RequestIdleState(12345);`  
 
----  
-
-`bool CCAST_SendCommand(integer $InstanzID, string $URN, string $Command, array $Payload = []);`  
-Testfunktion.
-Ermöglicht das Senden von einem Befehl mit Payload über eine spezifische URL an das Gerät.  
-
-Beispiel:  
-`CCAST_SendCommand(12345, 'urn:x-cast:com.google.cast.receiver', 'GET_STATUS', []);`  
-Entspricht dem Befehl CCAST_RequestState.  
-
----  
-
-`bool CCAST_SendCommandToApp(integer $InstanzID, string $URN, string $Command, array $Payload = []);`  
-Testfunktion.
-Ermöglicht das Senden von einem Befehl mit Payload über eine spezifische URL an die laufende App (Session).  
-
-Beispiel:  
-`CCAST_SendCommandToApp(12345, 'urn:x-cast:com.google.cast.tp.connection', 'CLOSE', []);`  
-Entspricht dem Befehl CCAST_CloseApp.  
+```php
+CCAST_RequestIdleState(12345);
+```
 
 ### Streaming von Inhalten
 
-`bool CCAST_PlayText(integer $InstanzID, string $Text, bool $CloseApp);`
+```php
+bool CCAST_PlayText(integer $InstanzID, string $Text, bool $CloseApp);
+```
+
 Startet eine Sprachausgabe mit dem in `Text` übergebenen Inhalt auf dem Gerät.  
 Der Parameter `CloseApp` sollte `true` sein, wenn keine weiteren Ausgaben oder Medien geladen werden.  
 
 Beispiel:  
-`CCAST_PlayText(12345, 'Achtung! Es folgt eine Durchsage.', false);`
+
+```php
+CCAST_PlayText(12345, 'Achtung! Es folgt eine Durchsage.', false);
+```
 
 ---  
-`bool CCAST_DisplayWebsite(integer $InstanzID, string $Url, bool $DisableInput, bool $AutoReload);`
+
+```php
+bool CCAST_DisplayWebsite(integer $InstanzID, string $Url, bool $DisableInput, bool $AutoReload);
+```
+
 Veranlasst das Gerät die in `Url` übergebene Website aufzurufen und darzustellen.  
 Über `DisableInput` auf `true` wird eine Eingabe unterbunden.  
 Der Parameter `AutoReload` sollte ein neu laden ermöglichen.  
 
 Beispiel:  
-`CCAST_DisplayWebsite(12345, 'https://community.symcon.de',false,true);`
+
+```php
+CCAST_DisplayWebsite(12345, 'https://community.symcon.de', false, true);
+```
 
 ---  
 
-`bool CCAST_LoadMediaURL(integer $InstanzID, string $Url, string $contentType, bool $isLive);`  
+```php
+bool CCAST_LoadMediaURL(integer $InstanzID, string $Url, string $contentType, bool $isLive);
+```
+
 Startet den Default Media Receiver, sofern nicht schon gestartet, und lädt die in `Url` übergebene Quelle.  
-Die Quelle muss ohne weitere Authentifizierung vom Gerät aus erreichbar sein.  
-Der Default Media Receiver unterstützt keine Anmeldeverfahren. Auch ein übergeben von Anmeldedaten in der Url wird nicht funktionieren.  
+
+> [!IMPORTANT]
+> Die Quelle muss ohne weitere Authentifizierung vom Gerät aus erreichbar sein.  
+> Der Default Media Receiver unterstützt keine Anmeldeverfahren. Auch ein übergeben von Anmeldedaten in der Url wird nicht funktionieren.
+
 Der Parameter `isLive` muss für Live-Streams `true` sein. Für normale Dateien wird `false` empfohlen.  
 Der `contentType` sollte passend zur Quelle gewählt werden und entspricht den MIME-Typen.  
 Wird ein leere String bei `contentType` übergeben, so wird versucht den richtigen Typ automatisch zu ermitteln.  
@@ -250,38 +322,107 @@ Auswahl von unterstützen und getesteten contentType`s:
 | image/jpeg  | JPG Bild       |
 
 Beispiel Live-Stream einer Kamera:  
-`CCAST_LoadMediaURL(12345, 'http://meineKamera/video.mp4', 'video/mp4', true);`  
+
+```php
+CCAST_LoadMediaURL(12345, 'http://meineKamera/video.mp4', 'video/mp4', true);
+```
 
 Beispiel Wiedergabe einer MP3 Datei:  
-`CCAST_LoadMediaURL(12345, 'http://meinSymcon:3777/user/Alarmton.mp3', 'audio/mp3', false);`  
+
+```php
+CCAST_LoadMediaURL(12345, 'http://meinSymcon:3777/user/Alarmton.mp3', 'audio/mp3', false);
+```
 
 Beispiel Anzeige eines Bildes:  
-`CCAST_LoadMediaURL(12345, 'https://upload.wikimedia.org/wikipedia/commons/a/ad/Reflection_nebula_IC_349_near_Merope.jpg', 'image/jpeg', false);`  
+
+```php
+CCAST_LoadMediaURL(12345, 'https://upload.wikimedia.org/wikipedia/commons/a/ad/Reflection_nebula_IC_349_near_Merope.jpg', 'image/jpeg', false);
+```
 
 ---  
 
-`bool CCAST_LoadMediaId(integer $InstanzID, string $contentId, string $contentType, bool $isLive);`  
+```php
+bool CCAST_LoadMediaId(integer $InstanzID, string $contentId, string $contentType, bool $isLive);
+```
+
 Identisch zu `CCAST_LoadMediaURL`, jedoch wird hier eine `contentId` für die entsprechende Quelle erwartet.  
 
 ---  
 
-`bool CCAST_PlayYouTube(integer $InstanzID, string $VideoId, string $ListId = '');`  
-Startet die YouTube App auf dem Chromecast und spielt das angegebene Video bzw. die Playlist ab.  
+```php
+bool CCAST_PlayYouTube(integer $InstanzID, string $VideoId, string $ListId = '');
+```
 
-Beispiel:  
-`CCAST_PlayYouTube(12345, 'dQw4w9WgXcQ', '');`  
+Startet die YouTube App auf dem Chromecast, sofern nicht schon gestartet, und spielt das angegebene Video bzw. die Playlist ab.  
+
+```php
+bool CCAST_PlayYouTubeMusic(integer $InstanzID, string $VideoId, string $ListId = '');
+```
+
+Startet die YouTube Music App auf dem Chromecast, sofern nicht schon gestartet, und spielt den angegebenen Titel bzw. die Playlist ab.  
+
+> [!IMPORTANT]
+> Beide Funktionen erwarten **keine URL**, sondern nur die IDs aus der Adresse eines Videos, Titels oder einer Playlist.
+
+Es ist kein Google-Konto und kein API-Key notwendig. Die Wiedergabe erfolgt ohne Nutzerbezug (keine eigenen Mixe, keine Likes).  
+
+**Wo finde ich die IDs?**  
+Video bzw. Titel im Browser oder per `Teilen` -> `Link kopieren` öffnen und die Adresse betrachten:  
+
+| Adresse (Beispiel)                                                    | `VideoId`     | `ListId`                             |
+| --------------------------------------------------------------------- | ------------- | ------------------------------------ |
+| `https://www.youtube.com/watch?v=8-Qekf_GBow`                         | `8-Qekf_GBow` | `''`                                 |
+| `https://youtu.be/8-Qekf_GBow?si=AbCdEfGh12345678`                    | `8-Qekf_GBow` | `''`                                 |
+| `https://www.youtube.com/shorts/8-Qekf_GBow`                          | `8-Qekf_GBow` | `''`                                 |
+| `https://music.youtube.com/watch?v=y0OovVJzJXY&list=RDAMVMy0OovVJzJXY` | `y0OovVJzJXY` | `RDAMVMy0OovVJzJXY`                  |
+| `https://music.youtube.com/playlist?list=PLL9hR76gpuABM39W7VRZdCyYqTzoEDM4v` | `''`    | `PLL9hR76gpuABM39W7VRZdCyYqTzoEDM4v` |
+| `https://music.youtube.com/playlist?list=OLAK5uy_nVAYpLix-FGE4fa2fYfi5ZG1fdSgt3bMA` (Album) | `''` | `OLAK5uy_nVAYpLix-FGE4fa2fYfi5ZG1fdSgt3bMA` |
+
+- Die `VideoId` ist der Wert hinter `v=` (bzw. nach `youtu.be/` oder `shorts/`) und immer 11 Zeichen lang (Buchstaben, Ziffern, `-` und `_`).  
+- Die `ListId` ist der Wert hinter `list=`. Typische Anfänge sind `PL…` (Playlist), `OLAK5uy_…` (Album bei YouTube Music) und `RD…` (automatischer Mix/Radio).  
+- Alle anderen Parameter der Adresse werden **nicht** übergeben. Insbesondere ist `si=…` nur eine Kennung des Teilen-Links und keine Video-ID. Auch eine Startzeit (`t=…`) wird nicht unterstützt, hierfür nach dem Start `CCAST_Seek` nutzen.  
+- Videos von YouTube können auch mit `CCAST_PlayYouTubeMusic` wiedergegeben werden und umgekehrt, sofern der Inhalt im jeweiligen Dienst verfügbar ist.  
+
+> [!TIP]
+> Ein Radio passend zu einem Titel erhält man über die `ListId` `RDAMVM` + `VideoId` (Beispiel siehe Tabelle).
+
+**Kombinationen der Parameter:**  
+
+| `VideoId` | `ListId` | Ergebnis                                                                                                    |
+| --------- | -------- | ----------------------------------------------------------------------------------------------------------- |
+| gesetzt   | leer     | Spielt das Video bzw. den Titel. Danach folgen ggf. automatische Vorschläge des Dienstes.                    |
+| gesetzt   | gesetzt  | Spielt das Video bzw. den Titel und anschließend die weiteren Einträge der Playlist. **Empfohlen.**          |
+| leer      | gesetzt  | Spielt die Playlist ab dem ersten Eintrag. Läuft bereits eine Wiedergabe in der App, so wird nur die Playlist getauscht und der laufende Titel nicht gewechselt. |
+| leer      | leer     | Nicht zulässig.                                                                                             |
+
+**Rückgabewert:**  
+`true` bedeutet, dass das Gerät den Befehl angenommen hat. Ob die ID existiert, kann vorher nicht geprüft werden.  
+Bei einer ungültigen oder nicht verfügbaren ID (z.B. Ländersperre, Altersfreigabe, privates Video) überspringt die App den Eintrag bzw. spielt einen Vorschlag ab.  
+Ob die gewünschte Wiedergabe läuft, ist an den Statusvariablen `Titel` und `Künstler` zu erkennen.  
+`false` mit Fehlermeldung erfolgt, wenn die App nicht gestartet werden konnte oder die YouTube Lounge die Anfrage ablehnt.  
+
+Beispiele:  
+
+```php
+// Ein einzelnes Video in YouTube
+CCAST_PlayYouTube(12345, '8-Qekf_GBow');
+
+// Einen Titel in YouTube Music, gefolgt vom passenden Radio
+CCAST_PlayYouTubeMusic(12345, 'y0OovVJzJXY', 'RDAMVMy0OovVJzJXY');
+
+// Eine Playlist in YouTube Music vom Anfang
+CCAST_PlayYouTubeMusic(12345, '', 'PLL9hR76gpuABM39W7VRZdCyYqTzoEDM4v');
+
+// Ein Album in YouTube Music vom ersten Titel
+CCAST_PlayYouTubeMusic(12345, '', 'OLAK5uy_nVAYpLix-FGE4fa2fYfi5ZG1fdSgt3bMA');
+```
 
 ---  
 
-`bool CCAST_PlayYouTubeMusic(integer $InstanzID, string $VideoId, string $ListId = '');`  
-Startet die YouTube Music App auf dem Chromecast und spielt den angegebenen Titel bzw. die Playlist ab.  
+```php
+bool CCAST_LoadMediaQueue(integer $InstanzID, array $Items, bool $Repeat, integer $StartIndex, bool $Autoplay);
+```
 
-Beispiel:  
-`CCAST_PlayYouTubeMusic(12345, 'dQw4w9WgXcQ', 'PL12345678');`  
-
----  
-
-`bool CCAST_LoadMediaQueue(integer $InstanzID, array $Items, bool $Repeat, integer $StartIndex, bool $Autoplay);`
 Lädt eine Liste von `Items` als Wiedergabeliste.  
 Jeder Eintrag von `Items` muss mindestens das Feld `contentUrl` enthalten.  
 Optional sind `streamType` und `contentType` möglich, wie bei den Funktionen zuvor.  
@@ -323,7 +464,10 @@ CCAST_LoadMediaQueue(12345, $Items, true, 1, true);
 
 ### Steuerung der Medienwiedergabe
 
-`bool CCAST_SetPlayerState(integer $InstanzID, string $State);`  
+```php
+bool CCAST_SetPlayerState(integer $InstanzID, string $State);
+```
+
 Sendet einen Steuerbefehl an die aktuelle Wiedergabe.  
 
 Auswahl von bekannten Befehlen:  
@@ -337,32 +481,55 @@ Auswahl von bekannten Befehlen:
 | QUEUE_PREV |
 
 Beispiel:  
-`CCAST_SetPlayerState(12345, 'PAUSE');`  
+
+```php
+CCAST_SetPlayerState(12345, 'PAUSE');
+```
+
 Pausiert die aktuelle Wiedergabe.  
 
 ---  
 
-`bool CCAST_Seek(integer $InstanzID, float $Time);`  
+```php
+bool CCAST_Seek(integer $InstanzID, float $Time);
+```
+
 Springt auf den in `Time` übergebenen Zeitpunkt der Wiedergabe.  
 
 Beispiel:  
-`CCAST_Seek(12345, 30.5);`  
+
+```php
+CCAST_Seek(12345, 30.5);
+```
+
 Springt bei der Aktuellen Wiedergabe auf 30,5 Sekunden.  
 
 ---  
 
-`bool CCAST_SeekRelative(integer $InstanzID, float $Time);`  
+```php
+bool CCAST_SeekRelative(integer $InstanzID, float $Time);
+```
+
 Spult die Wiedergabe um die in `Time` übergebenen Zeit vor oder zurück.  
 
 Beispiel:  
-`CCAST_SeekRelative(12345, -10);`  
+
+```php
+CCAST_SeekRelative(12345, -10);
+```
+
 Wiedergabe 10 Sekunden zurückspulen.  
 
 ---  
 
-`bool CCAST_SetRepeat(integer $InstanzID, string $Mode);`  
+```php
+bool CCAST_SetRepeat(integer $InstanzID, string $Mode);
+```
+
 Steuert die Art der Wiederholung einer Wiedergabeliste.  
-Wird nicht von allen Quellen unterstützt!  
+
+> [!NOTE]
+> Wird nicht von allen Quellen unterstützt!
 
 | Werte von Mode         |
 | ---------------------- |
@@ -372,51 +539,98 @@ Wird nicht von allen Quellen unterstützt!
 | REPEAT_ALL_AND_SHUFFLE |
 
 Beispiel:  
-`CCAST_SetRepeat(12345, 'REPEAT_ALL');`  
+
+```php
+CCAST_SetRepeat(12345, 'REPEAT_ALL');
+```
 
 ---  
 
-`bool CCAST_Shuffle(integer $InstanzID);`  
+```php
+bool CCAST_Shuffle(integer $InstanzID);
+```
+
 Lässt die Wiedergabeliste durchmischen.  
-Wird nicht von allen Quellen unterstützt!  
+
+> [!NOTE]
+> Wird nicht von allen Quellen unterstützt!
 
 Beispiel:  
-`CCAST_Shuffle(12345);`  
+
+```php
+CCAST_Shuffle(12345);
+```
 
 ---  
 
-`bool CCAST_SetLike(integer $InstanzID, bool $Liked);`  
+> [!NOTE]
+> **`CCAST_SetLike`, `CCAST_SetDislike` und `CCAST_DisplayLyrics`:**  
+> Diese Befehle muss die jeweilige App auf dem Gerät selbst umsetzen.  
+> YouTube und YouTube Music melden zwar `LIKE`/`DISLIKE` als unterstützt, lehnen die Befehle aber mit `INVALID_COMMAND` ab (getestet mit angemeldetem Konto, auch bei per Handy oder Website gestarteter Wiedergabe).  
+> Die Funktionen liefern dann `false` mit der Fehlermeldung des Gerätes.  
+
+```php
+bool CCAST_SetLike(integer $InstanzID, bool $Liked);
+```
+
 Erlaubt das setzen (`true`) oder löschen (`false`) eines Like der aktuellen Wiedergabe.  
-Wird nicht von allen Quellen unterstützt!  
+
+> [!NOTE]
+> Wird nicht von allen Quellen unterstützt!
 
 Beispiel:  
-`CCAST_SetLike(12345,true);`  
+
+```php
+CCAST_SetLike(12345, true);
+```
 
 ---  
 
-`bool CCAST_SetDislike(integer $InstanzID, bool $Disliked);`  
+```php
+bool CCAST_SetDislike(integer $InstanzID, bool $Disliked);
+```
+
 Erlaubt das setzen (`true`) oder löschen (`false`) eines Dislike der aktuellen Wiedergabe.  
-Wird nicht von allen Quellen unterstützt!  
+
+> [!NOTE]
+> Wird nicht von allen Quellen unterstützt!
 
 Beispiel:  
-`CCAST_SetDislike(12345,true);`  
+
+```php
+CCAST_SetDislike(12345, true);
+```
 
 ---  
 
-`bool CCAST_DisplayLyrics(integer $InstanzID, bool $Showing);`  
+```php
+bool CCAST_DisplayLyrics(integer $InstanzID, bool $Showing);
+```
+
 Schaltet die Anzeige der Lyrics ein (`true`) oder aus (`false`).  
-Wird nicht von allen Quellen unterstützt!  
+
+> [!NOTE]
+> Wird nicht von allen Quellen unterstützt!
 
 Beispiel:  
-`CCAST_DisplayLyrics(12345,true);`  
+
+```php
+CCAST_DisplayLyrics(12345, true);
+```
 
 ---  
 
-`bool CCAST_RequestMediaState(integer $InstanzID);`  
+```php
+bool CCAST_RequestMediaState(integer $InstanzID);
+```
+
 Fragt den aktuellen Status der Medienwiedergabe ab.  
 
 Beispiel:  
-`CCAST_RequestMediaState(12345);`  
+
+```php
+CCAST_RequestMediaState(12345);
+```
 
 ## 8. Aktionen
 
@@ -439,4 +653,4 @@ Die Library ist für die nicht kommerzielle Nutzung kostenlos, Schenkungen als U
 ## 10. Lizenz
 
   IPS-Modul:  
-  [CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/)  
+  [Custom NC-SA](../LICENSE)  
