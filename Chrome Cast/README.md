@@ -34,9 +34,13 @@ Einbinden eines Chrome Cast Gerätes in Symcon.
 
 ## 1. Funktionsumfang
 
-- Abbilden vom Status in Symcon
-- Steuerung von Lautstärke und Medien
-- Wiedergabe von Medien aus dem LAN per Default Media Render
+- Abbilden vom Status in Symcon (aktive App, Lautstärke, Wiedergabestatus, Titel, Künstler, Sammlung, Cover, Dauer, Position)
+- Steuerung von Lautstärke und Medien, auch bei Wiedergaben, welche von anderen Geräten gecastet wurden (z.B. YouTube Music, Spotify)
+- Wiederholung, Zufallswiedergabe und Wiedergabeliste für die Media-Kachel
+- Wiedergabe von Medien und Wiedergabelisten per Default Media Receiver
+- Wiedergabe von YouTube und YouTube Music (ohne Google-Konto)
+- Sprachausgabe von Texten und Anzeige von Webseiten
+- Aktionen für Ablaufpläne und Ereignisse
 
 ## 2. Voraussetzungen
 
@@ -57,7 +61,7 @@ Unter 'Instanz hinzufügen' kann das 'Chrome Cast'-Modul mithilfe des Schnellfil
 
 __Konfigurationsseite__:
 
-![Config](imgs/Config.png)  
+![Konfiguration](imgs/config.png)  
 
 | Eigenschaft                                        | Name                | Typ     | Standardwert | Beschreibung                                                                                                   |
 | -------------------------------------------------- | ------------------- | ------- | ------------ | -------------------------------------------------------------------------------------------------------------- |
@@ -70,6 +74,7 @@ __Konfigurationsseite__:
 | Breite vom App Icon                                | `AppIconSizeWidth`  | integer | `90`         | Breite in Pixel des App Icons, 60 bis 512                                                                      |
 | Variable für Dauer in Sekunden anlegen             | `enableRawDuration` | boolean | `true`       | Legt die Statusvariable `Dauer in Sekunden` an                                                                 |
 | Variable für Position in Sekunden anlegen          | `enableRawPosition` | boolean | `true`       | Legt die Statusvariable `Position in Sekunden` an                                                              |
+| Variable für Wiedergabeliste anlegen               | `enablePlaylist`    | boolean | `true`       | Legt die Statusvariable `Wiedergabeliste` an                                                                   |
 
 Die Eigenschaften können auch per Skript geändert werden. Die Änderungen werden erst mit `IPS_ApplyChanges` übernommen:  
 
@@ -78,6 +83,16 @@ IPS_SetProperty(12345, 'Interval', 30);
 IPS_SetProperty(12345, 'enableRawPosition', false);
 IPS_ApplyChanges(12345);
 ```
+
+Unter den Aktionen des Formulars stehen folgende Schaltflächen zur Verfügung:  
+
+| Schaltfläche                 | Funktion                                                                                         |
+| ---------------------------- | ------------------------------------------------------------------------------------------------ |
+| Verfügbare Apps abfragen     | Aktuell ohne Funktion (`CCAST_GetAppAvailability`, die Antwort wird noch nicht ausgewertet)       |
+| Zustandsabfrage              | Fragt den Status des Gerätes ab (`CCAST_RequestState`)                                           |
+| Medienstatus abfragen        | Fragt den Status der Medienwiedergabe ab (`CCAST_RequestMediaState`)                             |
+| App beenden                  | Beendet die laufende Cast App (`CCAST_CloseApp`)                                                 |
+| Gelernte Apps zurücksetzen   | Entfernt alle automatisch gelernten Apps aus dem App-Profil (mit Rückfrage), siehe [Profile](#profile) |
 
 Die Adresse des Gerätes wird nicht hier, sondern im übergeordneten `Client Socket` eingetragen: Eigenschaften `Host` (string) und `Port` (integer, bei ChromeCast-Geräten üblicherweise `8009`). Bei Anlage über die Discovery werden beide Werte automatisch gesetzt.  
 
@@ -91,7 +106,7 @@ Die Statusvariablen/Kategorien werden automatisch angelegt.
 > [!WARNING]
 > Das Löschen einzelner Statusvariablen kann zu Fehlfunktionen führen.
 
-![Variables](imgs/ObjectTree.png)  
+Zusätzlich legt die Instanz zwei Medienobjekte an: `App Icon` (Symbol der aktiven App) und `Media` (Cover der aktuellen Wiedergabe; ist kein Cover vorhanden oder kann es nicht geladen werden, das App-Symbol bzw. ein Ersatzbild).  
 
 | Name                 | Typ     | Beschreibung                                            |
 | -------------------- | ------- | ------------------------------------------------------- |
@@ -99,14 +114,17 @@ Die Statusvariablen/Kategorien werden automatisch angelegt.
 | Lautstärke           | integer | Lautstärke in %                                         |
 | Stumm                | bool    | Stummschaltung                                          |
 | Wiedergabestatus     | integer | Status bei Medienwiedergabe                             |
+| Wiederholung         | integer | Wiederholung der Wiedergabeliste (`~Repeat`)            |
+| Zufallswiedergabe    | bool    | Zufallswiedergabe der Wiedergabeliste (`~Shuffle`)      |
 | Dauer in Sekunden    | integer | Dauer der aktuellen Wiedergabe in Sekunden (optional)   |
 | Dauer                | string  | Dauer der aktuellen Wiedergabe als Text                 |
 | Position in Sekunden | integer | Position der aktuellen Wiedergabe in Sekunden (optional)|
 | Position             | string  | Position der aktuellen Wiedergabe als Text              |
 | Fortschritt          | float   | Aktueller Fortschritt der aktuellen Wiedergabe          |
-| Titel                | string  | Titel der aktuellen Wiedergabe                          |
+| Titel                | string  | Titel der aktuellen Wiedergabe (ohne Titel der Dateiname der Quelle) |
 | Künstler             | string  | Künstler der aktuelle Wiedergabe                        |
 | Sammlung             | string  | Sammlung, Album, Playlist o.ä. der aktuellen Wiedergabe |
+| Wiedergabeliste      | string  | Einträge der Wiedergabeliste (`~Playlist`, optional)    |
 
 ### Profile
 
@@ -120,6 +138,25 @@ Die Statusvariablen/Kategorien werden automatisch angelegt.
 
 Der Wiedergabestatus nutzt die Systemprofile `~Playback…`: Unterstützt die App Pause, werden nur Play/Pause angeboten (`~PlaybackNoStop` bzw. `~PlaybackPreviousNextNoStop`), sonst zusätzlich Stop. Zurück/Weiter erscheinen nur, wenn die App sie unterstützt.  
 
+`Wiederholung` nutzt das Systemprofil `~Repeat` (`0` = Aus, `1` = Kontext/ganze Liste, `2` = Lied) und `Zufallswiedergabe` das Systemprofil `~Shuffle`. Beide sind nur bedienbar, wenn eine Wiedergabeliste aktiv ist (z.B. per `CCAST_LoadMediaQueue`) oder die App die Funktion meldet. Ohne Wiedergabe werden sie auf `Aus` gesetzt.  
+Das Einschalten der Zufallswiedergabe mischt die Liste sofort und kann dabei zu einem anderen Titel springen; das Ausschalten stellt die ursprüngliche Reihenfolge wieder her.  
+Bei Spotify werden Änderungen an Wiederholung und Zufallswiedergabe erst mit dem nächsten Titelwechsel übernommen und angezeigt.  
+
+> [!NOTE]
+> **Spotify:** Eine Wiedergabe, die aus der Spotify-App oder dem Webplayer auf das Gerät gecastet wurde, kann über die Statusvariablen gesteuert werden (Play/Pause, Zurück/Weiter, Fortschritt, Lautstärke, Wiederholung, Zufallswiedergabe), Titel, Künstler, Album, Cover und Dauer werden angezeigt (getestet mit einem kostenlosen Konto).  
+> Das Starten von Spotify-Inhalten durch das Modul ist nicht möglich, Spotify benötigt dafür den Zugang eines angemeldeten Nutzers.
+
+`Wiedergabeliste` nutzt das Systemprofil `~Playlist` und wird in der Media-Kachel als Liste angezeigt. Ein Eintrag kann dort angewählt werden, die Wiedergabe springt dann auf diesen Eintrag.  
+Der Inhalt ist ein JSON-String im Format `{"current": 1, "entries": [{"artist": "…", "song": "…", "duration": 425}]}`. `current` ist der Index des aktuellen Eintrags (beginnend mit 0, `-1` = keiner), `duration` die Dauer in Sekunden (`0`, solange das Gerät den Eintrag noch nicht geladen hat). Fehlt ein Titel, wird der Dateiname der Quelle angezeigt.  
+Per Skript wird ein Eintrag mit `RequestAction` und einem JSON-String mit dem gewünschten Index in `current` angewählt:  
+
+```php
+RequestAction(IPS_GetObjectIDByIdent('playlist', 12345), json_encode(['current' => 2]));
+```
+
+> [!NOTE]
+> Die Wiedergabeliste wird nur bei Apps gefüllt, welche eine Cast-Wiedergabeliste melden (z.B. der Default Media Receiver mit `CCAST_LoadMediaQueue`). YouTube Music überträgt seine Liste nicht, die Variable bleibt dort leer.
+
 Meldet das Gerät eine App, welche noch nicht im Profil enthalten ist, wird diese automatisch aufgenommen (Name vom Gerät bzw. aus der öffentlichen App-Konfiguration von Google).  
 Die gelernten Apps bleiben dauerhaft erhalten und können über die Schaltfläche `Gelernte Apps zurücksetzen` im Konfigurationsformular entfernt werden.  
 
@@ -127,17 +164,28 @@ Die gelernten Apps bleiben dauerhaft erhalten und können über die Schaltfläch
 
 ### Kachel Visualisierung
 
-Die Funktionalität, die das Modul in der Kachel Visu bietet.  
+Die Instanz wird in der Kachel-Visualisierung als Media-Kachel dargestellt: Cover, Titel und Künstler, Lautstärke, Zurück/Play/Pause/Weiter, Zufallswiedergabe und Fortschritt.  
 
-![Tile](imgs/Tile.png)  
+![Kachel](imgs/tile_instance.png)  
+
+Maximiert zeigt die Media-Kachel zusätzlich Stummschaltung, Wiederholung und die Wiedergabeliste. Ein Eintrag der Liste kann direkt angewählt werden.  
+
+![Media-Kachel maximiert](imgs/tile_player.png)  
+
+Über das Symbol oben rechts lässt sich auf die Darstellung `Liste` mit allen Statusvariablen umschalten. `App Icon` und `Media` erscheinen dort als Symbol zum Öffnen, `Wiedergabeliste` als Text.  
+
+![Kachel Liste](imgs/tile_list.png)  
 
 ### WebFront Visualisierung
 
-Die Funktionalität, die das Modul im WebFront bietet.  
+Im WebFront werden alle Statusvariablen sowie App Icon und Cover angezeigt. Die Wiedergabeliste erscheint als Text.  
 
-![WebFront](imgs/WebFront.png)  
+![WebFront](imgs/webfront.png)  
 
 ## 7. PHP-Befehlsreferenz
+
+Alle Befehle liefern `true` bei Erfolg. Im Fehlerfall (z.B. Gerät nicht verbunden, keine Antwort innerhalb von 10 Sekunden, Fehlermeldung vom Gerät wie `LOAD_FAILED`, keine Wiedergabe aktiv) liefern sie `false` und erzeugen eine Meldung vom Typ `E_USER_NOTICE` mit dem Grund, welche im Skript ausgegeben bzw. im Log protokolliert wird.  
+Bei der Bedienung von Statusvariablen über die Visualisierung wird der Grund dagegen direkt in der Visualisierung angezeigt.  
 
 ### Allgemeine Befehle  
 
@@ -227,8 +275,9 @@ CCAST_GetAppAvailability(12345);
 bool CCAST_CloseApp(integer $InstanzID);
 ```
 
-Beendet die aktuelle Cast App.  
+Beendet die aktuelle Cast App (`STOP` an den Receiver), das Gerät wechselt in den Ruhemodus.  
 Wird z.B. bei Android TV Geräten eine native App ausgeführt, so hat der Befehl darauf keinen Einfluss.  
+Läuft keine App, liefert die Funktion `false` mit einer Fehlermeldung.  
 
 Beispiel:  
 
@@ -272,6 +321,10 @@ bool CCAST_PlayText(integer $InstanzID, string $Text, bool $CloseApp);
 
 Startet eine Sprachausgabe mit dem in `Text` übergebenen Inhalt auf dem Gerät.  
 Der Parameter `CloseApp` sollte `true` sein, wenn keine weiteren Ausgaben oder Medien geladen werden.  
+Der Text darf maximal 200 Zeichen lang sein, die Sprache entspricht der Systemsprache von Symcon.  
+
+> [!NOTE]
+> Die Sprachausgabe nutzt einen nicht offiziellen Dienst von Google Translate. Dieser kann jederzeit ohne Vorankündigung eingeschränkt werden oder entfallen.
 
 Beispiel:  
 
@@ -346,6 +399,13 @@ bool CCAST_LoadMediaId(integer $InstanzID, string $contentId, string $contentTyp
 ```
 
 Identisch zu `CCAST_LoadMediaURL`, jedoch wird hier eine `contentId` für die entsprechende Quelle erwartet.  
+Der Default Media Receiver nutzt die `contentId` als Adresse der Quelle, hier kann also ebenfalls eine URL übergeben werden.  
+
+Beispiel:  
+
+```php
+CCAST_LoadMediaId(12345, 'http://meinSymcon:3777/user/Alarmton.mp3', 'audio/mpeg', false);
+```
 
 ---  
 
@@ -392,7 +452,7 @@ Video bzw. Titel im Browser oder per `Teilen` -> `Link kopieren` öffnen und die
 | --------- | -------- | ----------------------------------------------------------------------------------------------------------- |
 | gesetzt   | leer     | Spielt das Video bzw. den Titel. Danach folgen ggf. automatische Vorschläge des Dienstes.                    |
 | gesetzt   | gesetzt  | Spielt das Video bzw. den Titel und anschließend die weiteren Einträge der Playlist. **Empfohlen.**          |
-| leer      | gesetzt  | Spielt die Playlist ab dem ersten Eintrag. Läuft bereits eine Wiedergabe in der App, so wird nur die Playlist getauscht und der laufende Titel nicht gewechselt. |
+| leer      | gesetzt  | Spielt die Playlist ab dem ersten Eintrag. Läuft bereits eine Wiedergabe in derselben App, wird die App vorher neu gestartet (einige Sekunden Verzögerung). |
 | leer      | leer     | Nicht zulässig.                                                                                             |
 
 **Rückgabewert:**  
@@ -431,6 +491,8 @@ Außerdem können über das Feld `metadata` noch weitere Daten der Quelle, wie T
 Der Parameter `Repeat` kann für Wiederholung der Liste auf `true` gesetzt werden, sonst muss `false` angegeben werden.  
 Der zuerst Wiedergegebene Eintrag ist in `StartIndex` zu übergeben und fängt mit 0 an.  
 Über den Parameter `Autoplay` auf `true` kann die Wiedergabe sofort gestartet werden.  
+
+Ist `Items` leer, fehlt bei einem Eintrag `contentUrl` oder liegt `StartIndex` außerhalb der Liste, liefert die Funktion `false` mit einer Fehlermeldung, ohne den Default Media Receiver zu starten.  
 
 Beispiel:  
 
@@ -531,12 +593,16 @@ Steuert die Art der Wiederholung einer Wiedergabeliste.
 > [!NOTE]
 > Wird nicht von allen Quellen unterstützt!
 
-| Werte von Mode         |
-| ---------------------- |
-| REPEAT_OFF             |
-| REPEAT_SINGLE          |
-| REPEAT_ALL             |
-| REPEAT_ALL_AND_SHUFFLE |
+| Werte von Mode         | Bedeutung                                                      |
+| ---------------------- | -------------------------------------------------------------- |
+| REPEAT_OFF             | Keine Wiederholung                                             |
+| REPEAT_SINGLE          | Aktuellen Titel wiederholen                                    |
+| REPEAT_ALL             | Ganze Liste wiederholen                                        |
+| REPEAT_ALL_AND_SHUFFLE | Ganze Liste wiederholen und nach jedem Durchlauf neu mischen   |
+
+Andere Werte werden mit einer Fehlermeldung abgelehnt.  
+`true` bedeutet, dass das Gerät den Befehl nicht abgelehnt hat. Ob es ihn übernommen hat, ist an der Statusvariable `Wiederholung` zu erkennen.  
+`false` mit Fehlermeldung erfolgt, wenn die App den Befehl ablehnt (z.B. YouTube Music: `INVALID_REQUEST INVALID_PARAMS`).  
 
 Beispiel:  
 
@@ -547,10 +613,13 @@ CCAST_SetRepeat(12345, 'REPEAT_ALL');
 ---  
 
 ```php
-bool CCAST_Shuffle(integer $InstanzID);
+bool CCAST_SetShuffle(integer $InstanzID, bool $Shuffle);
 ```
 
-Lässt die Wiedergabeliste durchmischen.  
+Schaltet die Zufallswiedergabe der Wiedergabeliste ein (`true`) oder aus (`false`).  
+Die bisherige Funktion `CCAST_Shuffle` ist weiterhin als veralteter Alias vorhanden und schaltet die Zufallswiedergabe ein.  
+Beim Einschalten wird die Liste sofort gemischt, dabei kann die App zu einem anderen Titel springen. Beim Ausschalten wird die ursprüngliche Reihenfolge wiederhergestellt.  
+`true` bedeutet, dass das Gerät den Befehl nicht abgelehnt hat. Ob es ihn übernommen hat, ist an der Statusvariable `Zufallswiedergabe` zu erkennen (YouTube Music z.B. ignoriert den Befehl ohne Fehlermeldung).  
 
 > [!NOTE]
 > Wird nicht von allen Quellen unterstützt!
@@ -558,64 +627,7 @@ Lässt die Wiedergabeliste durchmischen.
 Beispiel:  
 
 ```php
-CCAST_Shuffle(12345);
-```
-
----  
-
-> [!NOTE]
-> **`CCAST_SetLike`, `CCAST_SetDislike` und `CCAST_DisplayLyrics`:**  
-> Diese Befehle muss die jeweilige App auf dem Gerät selbst umsetzen.  
-> YouTube und YouTube Music melden zwar `LIKE`/`DISLIKE` als unterstützt, lehnen die Befehle aber mit `INVALID_COMMAND` ab (getestet mit angemeldetem Konto, auch bei per Handy oder Website gestarteter Wiedergabe).  
-> Die Funktionen liefern dann `false` mit der Fehlermeldung des Gerätes.  
-
-```php
-bool CCAST_SetLike(integer $InstanzID, bool $Liked);
-```
-
-Erlaubt das setzen (`true`) oder löschen (`false`) eines Like der aktuellen Wiedergabe.  
-
-> [!NOTE]
-> Wird nicht von allen Quellen unterstützt!
-
-Beispiel:  
-
-```php
-CCAST_SetLike(12345, true);
-```
-
----  
-
-```php
-bool CCAST_SetDislike(integer $InstanzID, bool $Disliked);
-```
-
-Erlaubt das setzen (`true`) oder löschen (`false`) eines Dislike der aktuellen Wiedergabe.  
-
-> [!NOTE]
-> Wird nicht von allen Quellen unterstützt!
-
-Beispiel:  
-
-```php
-CCAST_SetDislike(12345, true);
-```
-
----  
-
-```php
-bool CCAST_DisplayLyrics(integer $InstanzID, bool $Showing);
-```
-
-Schaltet die Anzeige der Lyrics ein (`true`) oder aus (`false`).  
-
-> [!NOTE]
-> Wird nicht von allen Quellen unterstützt!
-
-Beispiel:  
-
-```php
-CCAST_DisplayLyrics(12345, true);
+CCAST_SetShuffle(12345, true);
 ```
 
 ---  
@@ -635,6 +647,18 @@ CCAST_RequestMediaState(12345);
 ## 8. Aktionen
 
 **Grundsätzlich können alle bedienbaren Statusvariablen als Ziel einer [`Aktion`](https://www.symcon.de/service/dokumentation/konzepte/automationen/ablaufplaene/aktionen/) mit `Auf Wert schalten` angesteuert werden, so dass hier keine speziellen Aktionen benutzt werden müssen.**
+
+Für Befehle mit Parametern, welche keine Statusvariable abbildet, stehen folgende Aktionen mit einer `Chrome Cast`-Instanz als Ziel zur Verfügung:  
+
+| Aktion                            | Parameter                                                    | Entspricht                                          |
+| --------------------------------- | ------------------------------------------------------------ | --------------------------------------------------- |
+| Medien-URL abspielen              | URL, Inhaltstyp (oder Automatisch), Live-Stream               | `CCAST_LoadMediaURL`                                |
+| Text ansagen                      | Text (max. 200 Zeichen), App nach der Ansage beenden          | `CCAST_PlayText`                                    |
+| Webseite anzeigen                 | URL, Eingabe sperren, Automatisch neu laden                   | `CCAST_DisplayWebsite`                              |
+| YouTube / YouTube Music abspielen | Dienst, VideoId, ListId                                       | `CCAST_PlayYouTube` bzw. `CCAST_PlayYouTubeMusic`   |
+| App beenden                       | keine                                                        | `CCAST_CloseApp`                                    |
+
+Die Bedeutung der Parameter ist in der [PHP-Befehlsreferenz](#7-php-befehlsreferenz) beim jeweiligen Befehl beschrieben.  
 
 ## 9. Anhang
 

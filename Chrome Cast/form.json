@@ -108,6 +108,11 @@
             "name": "enableRawPosition",
             "type": "CheckBox",
             "caption": "Create variable for position in seconds"
+        },
+        {
+            "name": "enablePlaylist",
+            "type": "CheckBox",
+            "caption": "Create variable for playlist"
         }
     ],
     "actions": [

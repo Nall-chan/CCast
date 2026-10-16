@@ -33,6 +33,12 @@ eval('declare(strict_types=1);namespace Cast {?>' . file_get_contents(__DIR__ . 
  * @property bool $IsSeekable
  * @property float $DurationRAW
  * @property int $SupportedMediaCommands
+ * @property int $PendingMediaCommands //gemeldete, noch nicht bestätigte supportedMediaCommands (-1 = keine)
+ * @property bool $HasQueue //aktuelle Mediensitzung hat eine Wiedergabeliste (queueData wird nicht in jedem Status gemeldet)
+ * @property array $QueueItemIds //itemIds der Wiedergabeliste in Wiedergabereihenfolge
+ * @property array $QueueItems //Einträge der Wiedergabeliste (itemId => [artist, song, duration])
+ * @property int $CurrentItemId //itemId der aktuellen Wiedergabe
+ * @property float $QueueUpdatePending //Zeitpunkt, bis zu dem eine Abfrage der Wiedergabeliste aussteht
  * @property bool $StatusIsChanging
  * @property bool $IsIdleScreen
  * @property bool $PlaybackIsFinished
@@ -70,6 +76,11 @@ class ChromeCast extends IPSModuleStrict
     private const ACTION_MEDIA_STATE_FOLLOW_UP = 'MediaStateFollowUp';
 
     /**
+     * Interne Aktion für das Abfragen der Wiedergabeliste
+     */
+    private const ACTION_QUEUE_UPDATE = 'QueueUpdate';
+
+    /**
      * Idents, deren Fehler als Bedienaktion per echo zurückgemeldet werden
      */
     private const USER_ACTIONS = [
@@ -79,6 +90,9 @@ class ChromeCast extends IPSModuleStrict
         \Cast\Device\VariableIdent::PLAYER_STATE,
         \Cast\Device\VariableIdent::POSITION_RAW,
         \Cast\Device\VariableIdent::CURRENT_TIME,
+        \Cast\Device\VariableIdent::REPEAT_MODE,
+        \Cast\Device\VariableIdent::SHUFFLE,
+        \Cast\Device\VariableIdent::PLAYLIST,
         'PlayYouTube',
         'PlayYouTubeMusic'
     ];
@@ -113,6 +127,11 @@ class ChromeCast extends IPSModuleStrict
      */
     private string $lastError = '';
 
+    /**
+     * True, solange eine optionale interne Abfrage läuft; Fehler gehen dann nur in das Debug
+     */
+    private bool $isSilent = false;
+
     public function Create(): void
     {
         //Never delete this line!
@@ -136,6 +155,12 @@ class ChromeCast extends IPSModuleStrict
         $this->IsSeekable = false;
         $this->DurationRAW = 0;
         $this->SupportedMediaCommands = -1;
+        $this->PendingMediaCommands = -1;
+        $this->HasQueue = false;
+        $this->QueueItemIds = [];
+        $this->QueueItems = [];
+        $this->CurrentItemId = 0;
+        $this->QueueUpdatePending = 0.0;
         $this->StatusIsChanging = false;
         $this->IsIdleScreen = true;
         $this->PlaybackIsFinished = true;
@@ -148,6 +173,7 @@ class ChromeCast extends IPSModuleStrict
         $this->RegisterPropertyInteger(\Cast\Device\Property::APP_ICON_SIZE_WIDTH, 90);
         $this->RegisterPropertyBoolean(\Cast\Device\Property::ENABLE_RAW_DURATION, true);
         $this->RegisterPropertyBoolean(\Cast\Device\Property::ENABLE_RAW_POSITION, true);
+        $this->RegisterPropertyBoolean(\Cast\Device\Property::ENABLE_PLAYLIST, true);
         $this->RegisterAttributeString(\Cast\Device\Attribute::KNOWN_APPS, '[]');
         $this->RegisterTimer(\Cast\Device\Timer::PROGRESS_STATE, 0, 'IPS_RequestAction(' . $this->InstanceID . ',"' . \Cast\Device\Timer::PROGRESS_STATE . '",true);');
         $this->RegisterTimer(\Cast\Device\Timer::KEEP_ALIVE, 0, 'IPS_RequestAction(' . $this->InstanceID . ',"' . \Cast\Device\Timer::KEEP_ALIVE . '",true);');
@@ -178,6 +204,12 @@ class ChromeCast extends IPSModuleStrict
         $this->RegisterMessage($this->InstanceID, IM_CHANGESTATUS);
 
         $this->SupportedMediaCommands = -1;
+        $this->PendingMediaCommands = -1;
+        $this->HasQueue = false;
+        $this->QueueItemIds = [];
+        $this->QueueItems = [];
+        $this->CurrentItemId = 0;
+        $this->QueueUpdatePending = 0.0;
         $this->Buffer = '';
         $this->RequestId = 1;
         $this->ReplyCMsgPayload = [];
@@ -215,7 +247,13 @@ class ChromeCast extends IPSModuleStrict
         $this->RegisterVariableInteger(\Cast\Device\VariableIdent::PLAYER_STATE, $this->Translate('Player State'), '~PlaybackPreviousNextNoStop', ++$i);
         $this->EnableAction(\Cast\Device\VariableIdent::PLAYER_STATE);
 
-        //$this->RegisterVariableString(\Cast\Device\VariableIdent::REPEAT_MODE, $this->Translate('Repeat'), '', ++$i);
+        // Vor Version 0.5 war die Wiederholung eine String-Variable, diese wird ersetzt
+        $repeatId = @IPS_GetObjectIDByIdent(\Cast\Device\VariableIdent::REPEAT_MODE, $this->InstanceID);
+        if (($repeatId > 0) && IPS_VariableExists($repeatId) && (IPS_GetVariable($repeatId)['VariableType'] != VARIABLETYPE_INTEGER)) {
+            $this->UnregisterVariable(\Cast\Device\VariableIdent::REPEAT_MODE);
+        }
+        $this->RegisterVariableInteger(\Cast\Device\VariableIdent::REPEAT_MODE, $this->Translate('Repeat'), '~Repeat', ++$i);
+        $this->RegisterVariableBoolean(\Cast\Device\VariableIdent::SHUFFLE, $this->Translate('Shuffle'), '~Shuffle', ++$i);
 
         if ($this->ReadPropertyBoolean(\Cast\Device\Property::ENABLE_RAW_DURATION)) {
             $this->RegisterVariableInteger(\Cast\Device\VariableIdent::DURATION_RAW, $this->Translate('Duration in seconds'), \Cast\Device\Profile::DURATION_SECONDS, ++$i);
@@ -245,6 +283,15 @@ class ChromeCast extends IPSModuleStrict
         $this->RegisterVariableString(\Cast\Device\VariableIdent::TITLE, $this->Translate('Title'), '~Song', ++$i);
         $this->RegisterVariableString(\Cast\Device\VariableIdent::ARTIST, $this->Translate('Artist'), '~Artist', ++$i);
         $this->RegisterVariableString(\Cast\Device\VariableIdent::COLLECTION, $this->Translate('Collection'), \Cast\Device\Profile::COLLECTION, ++$i);
+
+        // ~Playlist wird von der Media-Kachel als Wiedergabeliste dargestellt
+        if ($this->ReadPropertyBoolean(\Cast\Device\Property::ENABLE_PLAYLIST)) {
+            $this->RegisterVariableString(\Cast\Device\VariableIdent::PLAYLIST, $this->Translate('Playlist'), '~Playlist', ++$i);
+            $this->SetValue(\Cast\Device\VariableIdent::PLAYLIST, \Cast\Queue::EMPTY_PLAYLIST);
+            $this->DisableAction(\Cast\Device\VariableIdent::PLAYLIST);
+        } else {
+            $this->UnregisterVariable(\Cast\Device\VariableIdent::PLAYLIST);
+        }
 
         if (IPS_GetKernelRunlevel() != KR_READY) {
             $this->RegisterMessage(0, IPS_KERNELSTARTED);
@@ -359,6 +406,10 @@ class ChromeCast extends IPSModuleStrict
                             $this->Buffer = '';
                             $this->RequestId = 1;
                             $this->ReplyCMsgPayload = [];
+                            // Virtuelle Verbindung zur App ist mit der TCP-Verbindung verloren, nach dem Verbinden neu aufbauen
+                            $this->TransportId = '';
+                            $this->SessionId = '';
+                            $this->AppNamespaces = [];
                             $this->SetIcon('');
                             $this->SetMediaImage('');
                             $this->ClearMediaVariables();
@@ -449,7 +500,20 @@ class ChromeCast extends IPSModuleStrict
                 // Veraltete Nachfrage (App gewechselt) still verwerfen
                 $this->MediaStateFollowUp = 0.0;
                 if (((string) $value === $this->TransportId) && $this->AppSupportsMedia()) {
+                    // Optionale Nachfrage, Fehler nur im Debug ausgeben
+                    $this->isSilent = true;
                     $this->RequestMediaState();
+                    $this->isSilent = false;
+                }
+                break;
+            case self::ACTION_QUEUE_UPDATE:
+                // Veraltete Abfrage (App gewechselt) still verwerfen
+                $this->QueueUpdatePending = 0.0;
+                if ((string) $value === $this->TransportId) {
+                    // Optionale Abfrage, Fehler nur im Debug ausgeben
+                    $this->isSilent = true;
+                    $this->UpdateQueue();
+                    $this->isSilent = false;
                 }
                 break;
             case 'ResetKnownApps':
@@ -466,11 +530,6 @@ class ChromeCast extends IPSModuleStrict
                     }
                 }
                 break;
-                /*
-    case \Cast\Device\VariableIdent::REPEAT_MODE:
-                $this->SetRepeat($Value);
-                break;
-                 */
             case \Cast\Device\Timer::PROGRESS_STATE:
                 if ($this->DurationRAW) {
                     if ($this->PositionRAW < $this->DurationRAW) {
@@ -588,31 +647,48 @@ class ChromeCast extends IPSModuleStrict
         return $payload ? true : false;
     }
 
+    /**
+     * Setzt die Art der Wiederholung der aktuellen Wiedergabe.
+     *
+     * @param string $mode REPEAT_OFF, REPEAT_ALL, REPEAT_SINGLE oder REPEAT_ALL_AND_SHUFFLE
+     * @return bool True, wenn der Befehl gesendet wurde
+     */
     public function SetRepeat(string $mode): bool
     {
-        if (!$this->MediaSessionId) {
-            $this->ReportError($this->Translate('No media playback active'));
+        if (!in_array($mode, \Cast\Queue::REPEAT_MODES, true)) {
+            $this->ReportError($this->Translate('Invalid value'));
             return false;
         }
-        $requestId = $this->RequestId++;
-        $payload = \Cast\Payload::MakePayload(\Cast\MediaCommands::QUEUE_UPDATE, ['repeatMode' => $mode, 'requestId' => $requestId, 'mediaSessionId' => $this->MediaSessionId]);
-        $cMsg = new \Cast\CastMessage([$this->InstanceID, $this->TransportId, \Cast\Urn::MEDIA_NAMESPACE, 0, $payload]);
-        $payload = $this->Send($cMsg, $requestId);
-        return $payload ? true : false;
+        return $this->SendQueueUpdateCommand(['repeatMode' => $mode]);
     }
 
+    /**
+     * Schaltet die Zufallswiedergabe der aktuellen Wiedergabeliste.
+     *
+     * @param bool $shuffle True mischt die Wiedergabeliste
+     * @return bool True, wenn der Befehl gesendet wurde
+     */
+    public function SetShuffle(bool $shuffle): bool
+    {
+        return $this->SendQueueUpdateCommand(['shuffle' => $shuffle]);
+    }
+
+    /**
+     * Veraltet: Alias für SetShuffle(true), bleibt aus Kompatibilitätsgründen erhalten.
+     *
+     * @deprecated Nutze CCAST_SetShuffle
+     * @return bool True, wenn der Befehl gesendet wurde
+     */
     public function Shuffle(): bool
     {
-        if (!$this->MediaSessionId) {
-            $this->ReportError($this->Translate('No media playback active'));
-            return false;
-        }
-        $requestId = $this->RequestId++;
-        $payload = \Cast\Payload::MakePayload(\Cast\MediaCommands::SHUFFLE, ['requestId' => $requestId, 'mediaSessionId' => $this->MediaSessionId]);
-        $cMsg = new \Cast\CastMessage([$this->InstanceID, $this->TransportId, \Cast\Urn::MEDIA_NAMESPACE, 0, $payload]);
-        $payload = $this->Send($cMsg, $requestId);
-        return $payload ? true : false;
+        return $this->SetShuffle(true);
     }
+
+    /*
+     * Zurückgestellt (nach 0.5): DisplayLyrics, SetLike, SetDislike
+     * YouTube Music lehnt USER_ACTION mit INVALID_COMMAND ab, unabhängig vom Konto (siehe STATUS.md).
+     * Umsetzung später über eine Dienst-API (z.B. YouTube Data API videos.rate) prüfen.
+     *
     public function DisplayLyrics(bool $showing): bool
     {
         if (!$this->MediaSessionId) {
@@ -649,6 +725,7 @@ class ChromeCast extends IPSModuleStrict
         $payload = $this->Send($cMsg, $requestId);
         return $payload ? true : false;
     }
+     */
 
     public function GetAppAvailability(): bool
     {
@@ -718,6 +795,9 @@ class ChromeCast extends IPSModuleStrict
             $this->ReportError($this->Translate('No VideoId or ListId given'));
             return false;
         }
+        if (!$this->RestartYouTubeAppForList(\Cast\Apps::YOUTUBE, $videoId)) {
+            return false;
+        }
         if ($this->ActualApp != \Cast\Apps::YOUTUBE || $this->TransportId == '') {
             if (!$this->LaunchApp(\Cast\Apps::YOUTUBE)) {
                 return false;
@@ -731,6 +811,9 @@ class ChromeCast extends IPSModuleStrict
     {
         if (($videoId === '') && ($listId === '')) {
             $this->ReportError($this->Translate('No VideoId or ListId given'));
+            return false;
+        }
+        if (!$this->RestartYouTubeAppForList(\Cast\Apps::YOUTUBE_MUSIC, $videoId)) {
             return false;
         }
         if ($this->ActualApp != \Cast\Apps::YOUTUBE_MUSIC || $this->TransportId == '') {
@@ -793,22 +876,21 @@ class ChromeCast extends IPSModuleStrict
     }
     public function LoadMediaQueue(array $items, bool $repeat, int $startIndex, bool $autoplay): bool
     {
+        // Erst die Einträge prüfen, dann die App starten
+        $payloadItems = \Cast\Queue::BuildItems($items, fn (string $extension): string => self::GetMimeType($extension));
+        if (is_string($payloadItems)) {
+            $this->ReportError($this->Translate($payloadItems));
+            return false;
+        }
+        if (($startIndex < 0) || ($startIndex >= count($payloadItems))) {
+            $this->ReportError($this->Translate('StartIndex is out of range'));
+            return false;
+        }
         if ($this->ActualApp != \Cast\Apps::DEFAULT_MEDIA_RECEIVER || $this->TransportId == '') {
             if (!$this->LaunchApp(\Cast\Apps::DEFAULT_MEDIA_RECEIVER)) {
                 return false;
             }
             IPS_Sleep(1000);
-        }
-        $payloadItems = [];
-        foreach ($items as $item) {
-            if (!is_array($item) || !isset($item['contentUrl'])) {
-                $this->ReportError($this->Translate('Every queue item needs a contentUrl'));
-                return false;
-            }
-            $item['contentType'] = $item['contentType'] ?? self::GetMimeType(pathinfo((string) parse_url($item['contentUrl'], PHP_URL_PATH), PATHINFO_EXTENSION));
-            $payloadItems[] = [
-                'media' => array_merge(\Cast\Queue::MEDIA_ITEM_KEYS, $item)
-            ];
         }
         $requestId = $this->RequestId++;
         $payload = [
@@ -863,6 +945,10 @@ class ChromeCast extends IPSModuleStrict
 
     public function RequestMediaState(): bool
     {
+        if (!$this->HasActiveParent()) {
+            $this->ReportError($this->Translate('Device not connected'));
+            return false;
+        }
         if ($this->IsIdleScreen) {
             return $this->RequestIdleState();
         }
@@ -1025,6 +1111,21 @@ class ChromeCast extends IPSModuleStrict
                     return false;
                 }
                 return $this->Seek(($this->DurationRAW / 100) * $value);
+            case \Cast\Device\VariableIdent::REPEAT_MODE:
+                if (!isset(\Cast\Queue::INT_TO_REPEAT[(int) $value])) {
+                    $this->ReportError($this->Translate('Invalid value'));
+                    return false;
+                }
+                return $this->SetRepeat(\Cast\Queue::INT_TO_REPEAT[(int) $value]);
+            case \Cast\Device\VariableIdent::SHUFFLE:
+                return $this->SetShuffle((bool) $value);
+            case \Cast\Device\VariableIdent::PLAYLIST:
+                $itemId = \Cast\Queue::GetItemIdFromSelection($this->QueueItemIds, $value);
+                if ($itemId === null) {
+                    $this->ReportError($this->Translate('Invalid value'));
+                    return false;
+                }
+                return $this->SendQueueUpdateCommand(['currentItemId' => $itemId]);
             case 'PlayYouTube':
                 if (is_array($value)) {
                     return $this->PlayYouTube($value['videoId'] ?? '', $value['listId'] ?? '');
@@ -1050,6 +1151,9 @@ class ChromeCast extends IPSModuleStrict
     private function ReportError(string $message): void
     {
         $this->SendDebug('Error', $message, 0);
+        if ($this->isSilent) {
+            return;
+        }
         if ($this->isUserAction) {
             // erste Meldung behalten, sie beschreibt die Ursache
             if ($this->lastError === '') {
@@ -1058,6 +1162,35 @@ class ChromeCast extends IPSModuleStrict
             return;
         }
         trigger_error($message, E_USER_NOTICE);
+    }
+
+    /**
+     * Beendet die YouTube- bzw. YouTube-Music-App, wenn nur eine Liste geladen werden soll und bereits eine Wiedergabe läuft.
+     * Der Receiver meldet sonst dauerhaft abwechselnd den laufenden Titel und den ersten Titel der neuen Liste
+     * (live geprüft 2026-10-16, YouTube Music auf Nest Hub). Nach dem Neustart spielt die Liste ab dem ersten Eintrag.
+     *
+     * @param string $appId AppId der YouTube-App
+     * @param string $videoId Übergebene VideoId
+     * @return bool False, wenn die App nicht beendet werden konnte
+     */
+    private function RestartYouTubeAppForList(string $appId, string $videoId): bool
+    {
+        if (($videoId !== '') || ($this->ActualApp != $appId) || !$this->MediaSessionId) {
+            return true;
+        }
+        $this->SendDebug(__FUNCTION__, 'restart app for list', 0);
+        if (!$this->CloseApp()) {
+            return false;
+        }
+        // Warten, bis das Gerät den Wechsel in den Ruhemodus gemeldet hat
+        $millis = microtime(true) + 5;
+        do {
+            if ($this->ActualApp != $appId) {
+                break;
+            }
+            IPS_Sleep(100);
+        } while ($millis > microtime(true));
+        return true;
     }
 
     private function PlayYouTubeLounge(string $videoId, string $listId, string $baseUrl, string $loungeTokenUrl, string $theme): bool
@@ -1308,7 +1441,8 @@ class ChromeCast extends IPSModuleStrict
             IPS_SetParent($mediaId, $this->InstanceID);
             IPS_SetIdent($mediaId, 'mediaUrl');
             IPS_SetName($mediaId, 'Media');
-            IPS_SetPosition($mediaId, 13);
+            // Hinter allen Statusvariablen
+            IPS_SetPosition($mediaId, 20);
             IPS_SetMediaCached($mediaId, true);
             $filename = 'media' . DIRECTORY_SEPARATOR . 'CCast_mediaUrl_' . $this->InstanceID . '.jpg';
             IPS_SetMediaFile($mediaId, $filename, false);
@@ -1349,6 +1483,10 @@ class ChromeCast extends IPSModuleStrict
             IPS_SetMediaContent($mediaId, base64_encode($mediaRAW));
         } else {
             $this->SendDebug('Refresh mediaUrl', 'download failed', 0);
+            // Kein altes Bild (z.B. Foto aus dem Ruhemodus) stehen lassen, stattdessen das Ersatzbild anzeigen
+            if ($mediaUrl !== '') {
+                $this->SetMediaImage('');
+            }
         }
     }
     private function ResizeImage(string $imageRaw, int $sizeWidth, string $format = 'jpg'): string
@@ -1386,7 +1524,16 @@ class ChromeCast extends IPSModuleStrict
 
         return $thumbRAW;
     }
-    private function Send(\Cast\CastMessage $cMsg, int $requestId = 0): bool|array
+    /**
+     * Sendet eine Nachricht an das Gerät und wartet optional auf die Antwort.
+     *
+     * @param \Cast\CastMessage $cMsg Nachricht
+     * @param int $requestId 0 = nicht auf eine Antwort warten
+     * @param float $timeout Maximale Wartezeit in Sekunden
+     * @param bool $acceptNoResponse True, wenn eine fehlende Antwort kein Fehler ist (z.B. QUEUE_UPDATE)
+     * @return bool|array Antwort, true ohne Antwort, false bei Fehler
+     */
+    private function Send(\Cast\CastMessage $cMsg, int $requestId = 0, float $timeout = 10, bool $acceptNoResponse = false): bool|array
     {
         if ($cMsg->GetUrn() != \Cast\Urn::HEARTBEAT_NAMESPACE) {
             $this->SendDebug('Send (' . $requestId . ')', $cMsg->GetDebugData(), 0);
@@ -1412,8 +1559,11 @@ class ChromeCast extends IPSModuleStrict
         if ($requestId == 0) {
             return true;
         }
-        $result = $this->WaitForResponse($requestId);
+        $result = $this->WaitForResponse($requestId, $timeout);
         $this->SendDebug('Result (' . $requestId . ')', $result, 0);
+        if (($result === false) && $acceptNoResponse) {
+            return true;
+        }
         if ($result) {
             $result['type'] = $result['type'] ?? $result['responseType'] ?? '';
             $this->DecodeEvent($cMsg, $result);
@@ -1495,6 +1645,10 @@ class ChromeCast extends IPSModuleStrict
                         if (isset($status['mediaSessionId'])) {
                             if ($this->MediaSessionId != $status['mediaSessionId']) {
                                 $this->MediaSessionId = $status['mediaSessionId'];
+                                $this->HasQueue = false;
+                                $this->QueueItemIds = [];
+                                $this->QueueItems = [];
+                                $this->CurrentItemId = 0;
                                 if (!array_key_exists('media', $status)) {
                                     $this->ScheduleMediaStateFollowUp(1);
                                 }
@@ -1506,10 +1660,23 @@ class ChromeCast extends IPSModuleStrict
                         if (isset($status['playerState'])) {
                             if ($status['playerState'] != \Cast\PlayerState::BUFFERING) {
                                 if (isset($status['supportedMediaCommands'])) {
+                                    $mediaCommands = (int) $status['supportedMediaCommands'];
                                     if (isset($status['queueData'])) {
-                                        $status['supportedMediaCommands'] += 64;
+                                        $this->HasQueue = true;
                                     }
-                                    $this->UpdateControlsByMediaCommand($status['supportedMediaCommands']);
+                                    // Mit Wiedergabeliste sind Weiter, Wiederholung und Zufallswiedergabe immer möglich, auch wenn das Gerät sie nicht meldet
+                                    if ($this->HasQueue) {
+                                        $mediaCommands |= \Cast\MediaCommands::QUEUE_COMMANDS;
+                                    }
+                                    // Wechselnde Werte (z.B. beim Puffern oder Listenwechsel) entprellen
+                                    [$apply, $pending] = \Cast\MediaCommands::Debounce($this->SupportedMediaCommands, $this->PendingMediaCommands, $mediaCommands);
+                                    $this->PendingMediaCommands = $pending;
+                                    if ($apply) {
+                                        $this->UpdateControlsByMediaCommand($mediaCommands);
+                                    } elseif ($pending != -1) {
+                                        $this->SendDebug('COMMANDS', 'changed to ' . $mediaCommands . ', waiting for confirmation', 0);
+                                        $this->ScheduleMediaStateFollowUp(2000);
+                                    }
                                 }
                                 // Unbekannte Zustände (z.B. LOADING) nicht auf die Variable abbilden
                                 if (isset(\Cast\PlayerState::STATE_TO_INT[$status['playerState']])) {
@@ -1599,19 +1766,9 @@ class ChromeCast extends IPSModuleStrict
                                 }
                             }
 
-                            if (isset($media['metadata'][\Cast\Device\VariableIdent::TITLE])) {
-                                $this->SetValue(\Cast\Device\VariableIdent::TITLE, $media['metadata'][\Cast\Device\VariableIdent::TITLE]);
-                            } else {
-                                $this->SetValue(\Cast\Device\VariableIdent::TITLE, '');
-                            }
-                            // Künstler: artist, bei Musik ersatzweise albumArtist,
-                            // bei GenericMediaMetadata (Typ 0, z.B. Musikvideos bei YouTube Music) ersatzweise subtitle.
-                            // Bei Filmen/Serien (Typ 1/2) enthält subtitle eine Beschreibung bzw. den Episodentitel und wird nicht genutzt.
-                            $artist = $media['metadata'][\Cast\Device\VariableIdent::ARTIST] ?? $media['metadata']['albumArtist'] ?? '';
-                            if (($artist === '') && ((int) ($media['metadata']['metadataType'] ?? 0) === 0)) {
-                                $artist = $media['metadata']['subtitle'] ?? '';
-                            }
-                            $this->SetValue(\Cast\Device\VariableIdent::ARTIST, (string) $artist);
+                            // Ohne Titel in den Metadaten den Dateinamen der Quelle anzeigen
+                            $this->SetValue(\Cast\Device\VariableIdent::TITLE, \Cast\Queue::GetTitle($media));
+                            $this->SetValue(\Cast\Device\VariableIdent::ARTIST, \Cast\Queue::GetArtist(is_array($media['metadata'] ?? null) ? $media['metadata'] : []));
                             if (isset($media['metadata']['albumName'])) {
                                 $this->SetValue(\Cast\Device\VariableIdent::COLLECTION, $media['metadata']['albumName']);
                             } else {
@@ -1669,24 +1826,45 @@ class ChromeCast extends IPSModuleStrict
                             }
                         }
 
-                        //queueData
-                        /*
-                        if (isset($Status['queueData']['repeatMode'])) {
-                            $this->SetValue(\Cast\Device\VariableIdent::REPEAT_MODE, $status['queueData']['repeatMode']);
-                        } elseif (isset($Status['repeatMode'])) {
-                            $this->SetValue(\Cast\Device\VariableIdent::REPEAT_MODE, $status['repeatMode']);
-                        } else {
-                            $this->SetValue(\Cast\Device\VariableIdent::REPEAT_MODE,'');
+                        // Wiederholung und Zufallswiedergabe, fehlende Werte behalten den letzten Stand
+                        [$repeat, $shuffle] = \Cast\Queue::ParseRepeatShuffle($status);
+                        if ($repeat !== null) {
+                            $this->SetValue(\Cast\Device\VariableIdent::REPEAT_MODE, $repeat);
                         }
-                        //queueData:repeatMode | REPEAT_OFF
-                        //queueData:shuffle | FALSE
-                         */
-                        //items
-                        //items:0:media:duration
-                        //items:0:media:metadata:title
-                        //items:0:media:customData:mediaItem:title
-                        //items:0:media:customData:artists
-                        //items:0:media:customData:title
+                        if ($shuffle !== null) {
+                            $this->SetValue(\Cast\Device\VariableIdent::SHUFFLE, $shuffle);
+                        }
+                        // Wiedergabeliste: items enthält nur einen Ausschnitt um den aktuellen Eintrag
+                        if ($this->HasQueue && $this->ReadPropertyBoolean(\Cast\Device\Property::ENABLE_PLAYLIST)) {
+                            if (!empty($status['items']) && is_array($status['items'])) {
+                                $this->QueueItems = \Cast\Queue::MergeItems($this->QueueItems, $status['items']);
+                            }
+                            if (isset($status['currentItemId'])) {
+                                $this->CurrentItemId = (int) $status['currentItemId'];
+                            }
+                            if (count($this->QueueItemIds) == 0) {
+                                $this->ScheduleQueueUpdate();
+                            }
+                            $this->UpdatePlaylistVariable();
+                        }
+                        break;
+                    case \Cast\Commands::QUEUE_ITEM_IDS:
+                        if (isset($payload['itemIds']) && is_array($payload['itemIds'])) {
+                            $this->QueueItemIds = array_map('intval', $payload['itemIds']);
+                            $this->UpdatePlaylistVariable();
+                        }
+                        break;
+                    case \Cast\Commands::QUEUE_ITEMS:
+                        if (isset($payload['items']) && is_array($payload['items'])) {
+                            $this->QueueItems = \Cast\Queue::MergeItems($this->QueueItems, $payload['items']);
+                            $this->UpdatePlaylistVariable();
+                        }
+                        break;
+                    case \Cast\Commands::QUEUE_CHANGE:
+                        // Einträge wurden eingefügt, entfernt, geändert oder umsortiert (z.B. Shuffle)
+                        if ($this->HasQueue && $this->ReadPropertyBoolean(\Cast\Device\Property::ENABLE_PLAYLIST)) {
+                            $this->ScheduleQueueUpdate();
+                        }
                         break;
                 }
                 break;
@@ -1775,6 +1953,99 @@ class ChromeCast extends IPSModuleStrict
     }
 
     /**
+     * Sendet ein QUEUE_UPDATE an die aktuelle Medienwiedergabe.
+     * Die Geräte beantworten QUEUE_UPDATE nicht zuverlässig bzw. erst nach einigen Sekunden (Default Media Receiver ca. 4 s),
+     * eine Ablehnung (z.B. YouTube Music: INVALID_REQUEST) kommt dagegen sofort.
+     * Daher wird nur kurz gewartet: Fehlerantworten werden gemeldet, eine fehlende Antwort gilt als angenommen.
+     * Der neue Zustand kommt per MEDIA_STATUS, zur Sicherheit wird der Medienstatus zusätzlich nachgefragt.
+     *
+     * @param array $data Felder von QUEUE_UPDATE (z.B. repeatMode, shuffle)
+     * @return bool True, wenn der Befehl gesendet wurde
+     */
+    private function SendQueueUpdateCommand(array $data): bool
+    {
+        if (!$this->MediaSessionId) {
+            $this->ReportError($this->Translate('No media playback active'));
+            return false;
+        }
+        $requestId = $this->RequestId++;
+        $payload = \Cast\Payload::MakePayload(\Cast\MediaCommands::QUEUE_UPDATE, array_merge($data, ['requestId' => $requestId, 'mediaSessionId' => $this->MediaSessionId]));
+        $cMsg = new \Cast\CastMessage([$this->InstanceID, $this->TransportId, \Cast\Urn::MEDIA_NAMESPACE, 0, $payload]);
+        if (!$this->Send($cMsg, $requestId, 2, true)) {
+            return false;
+        }
+        $this->ScheduleMediaStateFollowUp(1000);
+        // Mischen ändert die Reihenfolge der Wiedergabeliste
+        if (isset($data['shuffle']) && $this->HasQueue && $this->ReadPropertyBoolean(\Cast\Device\Property::ENABLE_PLAYLIST)) {
+            $this->ScheduleQueueUpdate(5000);
+        }
+        return true;
+    }
+
+    /**
+     * Plant eine Abfrage der Wiedergabeliste für die aktuelle App.
+     * Es steht immer nur eine Abfrage aus; sie wird verworfen, wenn die App bis dahin gewechselt hat.
+     *
+     * @param int $delay Verzögerung in Millisekunden
+     */
+    private function ScheduleQueueUpdate(int $delay = 500): void
+    {
+        if ($this->QueueUpdatePending > microtime(true)) {
+            return;
+        }
+        // Sicherheitsablauf, falls die geplante Abfrage nicht ausgeführt wird
+        $this->QueueUpdatePending = microtime(true) + ($delay / 1000) + 25;
+        IPS_RunScriptText('IPS_Sleep(' . $delay . ');IPS_RequestAction(' . $this->InstanceID . ',"' . self::ACTION_QUEUE_UPDATE . '","' . $this->TransportId . '");');
+    }
+
+    /**
+     * Fragt die Reihenfolge (QUEUE_GET_ITEM_IDS) und fehlende Einträge (QUEUE_GET_ITEMS) der Wiedergabeliste ab.
+     * Die Antworten werden in DecodeEvent ausgewertet.
+     *
+     * @return bool True bei Erfolg
+     */
+    private function UpdateQueue(): bool
+    {
+        if (!$this->MediaSessionId || !$this->HasQueue) {
+            return false;
+        }
+        $requestId = $this->RequestId++;
+        $payload = \Cast\Payload::MakePayload(\Cast\Commands::QUEUE_GET_ITEM_IDS, ['requestId' => $requestId, 'mediaSessionId' => $this->MediaSessionId]);
+        $cMsg = new \Cast\CastMessage([$this->InstanceID, $this->TransportId, \Cast\Urn::MEDIA_NAMESPACE, 0, $payload]);
+        if (!$this->Send($cMsg, $requestId)) {
+            return false;
+        }
+        $missing = \Cast\Queue::MissingItemIds($this->QueueItemIds, $this->QueueItems);
+        foreach (array_chunk($missing, \Cast\Queue::ITEMS_PER_REQUEST) as $itemIds) {
+            $requestId = $this->RequestId++;
+            $payload = \Cast\Payload::MakePayload(\Cast\Commands::QUEUE_GET_ITEMS, ['requestId' => $requestId, 'mediaSessionId' => $this->MediaSessionId, 'itemIds' => $itemIds]);
+            $cMsg = new \Cast\CastMessage([$this->InstanceID, $this->TransportId, \Cast\Urn::MEDIA_NAMESPACE, 0, $payload]);
+            if (!$this->Send($cMsg, $requestId)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /**
+     * Schreibt die Wiedergabeliste in die Statusvariable (~Playlist) und setzt deren Bedienbarkeit.
+     */
+    private function UpdatePlaylistVariable(): void
+    {
+        if (!$this->ReadPropertyBoolean(\Cast\Device\Property::ENABLE_PLAYLIST)) {
+            return;
+        }
+        $itemIds = $this->QueueItemIds;
+        if (count($itemIds) == 0) {
+            $this->SetValue(\Cast\Device\VariableIdent::PLAYLIST, \Cast\Queue::EMPTY_PLAYLIST);
+            $this->DisableAction(\Cast\Device\VariableIdent::PLAYLIST);
+            return;
+        }
+        $this->SetValue(\Cast\Device\VariableIdent::PLAYLIST, \Cast\Queue::BuildPlaylist($itemIds, $this->QueueItems, $this->CurrentItemId));
+        $this->EnableAction(\Cast\Device\VariableIdent::PLAYLIST);
+    }
+
+    /**
      * Prüft, ob die aktuelle App den Media-Namespace unterstützt.
      */
     private function AppSupportsMedia(): bool
@@ -1855,6 +2126,14 @@ class ChromeCast extends IPSModuleStrict
         if ($this->ReadPropertyBoolean(\Cast\Device\Property::ENABLE_RAW_POSITION)) {
             $this->SetValue(\Cast\Device\VariableIdent::POSITION_RAW, 0);
         }
+        $this->SetValue(\Cast\Device\VariableIdent::REPEAT_MODE, \Cast\Queue::REPEAT_TO_INT[\Cast\Queue::REPEAT_OFF]);
+        $this->SetValue(\Cast\Device\VariableIdent::SHUFFLE, false);
+        $this->PendingMediaCommands = -1;
+        $this->HasQueue = false;
+        $this->QueueItemIds = [];
+        $this->QueueItems = [];
+        $this->CurrentItemId = 0;
+        $this->UpdatePlaylistVariable();
         $this->UpdateControlsByMediaCommand(0);
         $this->SetPlayerStateValue(\Cast\PlayerState::STATE_TO_INT[\Cast\PlayerState::IDLE]);
     }
@@ -1899,21 +2178,16 @@ class ChromeCast extends IPSModuleStrict
         }
         $this->RegisterVariableInteger(\Cast\Device\VariableIdent::PLAYER_STATE, $this->Translate('Player State'), $profile, self::POSITION_PLAYER_STATE);
 
-        /*
-        if (in_array(\Cast\MediaCommands::REPEAT_ALL, $Commands) || in_array(\Cast\MediaCommands::REPEAT_ONE, $Commands)) {
+        if (in_array(\Cast\MediaCommands::REPEAT_ALL, $commands) || in_array(\Cast\MediaCommands::REPEAT_ONE, $commands)) {
             $this->EnableAction(\Cast\Device\VariableIdent::REPEAT_MODE);
         } else {
             $this->DisableAction(\Cast\Device\VariableIdent::REPEAT_MODE);
         }
-         */
-
-        /*
         if (in_array(\Cast\MediaCommands::SHUFFLE, $commands)) {
             $this->EnableAction(\Cast\Device\VariableIdent::SHUFFLE);
         } else {
             $this->DisableAction(\Cast\Device\VariableIdent::SHUFFLE);
         }
-         */
         if (in_array(\Cast\MediaCommands::SEEK, $commands)) {
             $this->IsSeekable = true;
             if ($this->ReadPropertyBoolean(\Cast\Device\Property::ENABLE_RAW_POSITION)) {
@@ -1968,8 +2242,8 @@ class ChromeCast extends IPSModuleStrict
             $isEvent = true;
             if (array_key_exists('requestId', $payload)) {
                 if ($payload['requestId'] != 0) {
-                    $isEvent = false;
-                    $this->SendQueueUpdate($payload);
+                    // Antworten ohne wartende Anfrage (z.B. auf QUEUE_UPDATE) als Ereignis auswerten
+                    $isEvent = !$this->SendQueueUpdate($payload);
                 }
             }
             if ($isEvent) {
@@ -1988,11 +2262,12 @@ class ChromeCast extends IPSModuleStrict
      * Wartet auf eine Antwort einer Anfrage
      *
      * @param int $requestId
+     * @param float $timeout Maximale Wartezeit in Sekunden
      * @return array|false Enthält ein Array mit den Daten der Antwort. False bei einem Timeout
      */
-    private function WaitForResponse(int $requestId): false|array
+    private function WaitForResponse(int $requestId, float $timeout = 10): false|array
     {
-        $millis = microtime(true) + 10;
+        $millis = microtime(true) + $timeout;
         do {
             $buffer = $this->ReplyCMsgPayload;
             if (!array_key_exists($requestId, $buffer)) {

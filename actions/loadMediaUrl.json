@@ -1,0 +1,77 @@
+{
+    "id": "{B51EB1F0-0C2A-444B-922E-9AA17C86CF07}",
+    "caption": "Play media URL",
+    "form": [
+        {
+            "type": "ValidationTextBox",
+            "name": "URL",
+            "caption": "URL",
+            "validate": "^https?://\\S+$"
+        },
+        {
+            "type": "Select",
+            "name": "CONTENTTYPE",
+            "caption": "Content type",
+            "value": "",
+            "options": [
+                {
+                    "caption": "Automatic",
+                    "value": ""
+                },
+                {
+                    "caption": "MP3 (audio/mpeg)",
+                    "value": "audio/mpeg"
+                },
+                {
+                    "caption": "MP4 (video/mp4)",
+                    "value": "video/mp4"
+                },
+                {
+                    "caption": "JPG image (image/jpeg)",
+                    "value": "image/jpeg"
+                },
+                {
+                    "caption": "PNG image (image/png)",
+                    "value": "image/png"
+                }
+            ]
+        },
+        {
+            "type": "CheckBox",
+            "name": "ISLIVE",
+            "caption": "Live stream",
+            "value": false
+        }
+    ],
+    "action": "CCAST_LoadMediaURL($_IPS['TARGET'], $_IPS['URL'], $_IPS['CONTENTTYPE'], $_IPS['ISLIVE']);",
+    "category": "target",
+    "restrictions": {
+        "objectType": [
+            1
+        ],
+        "moduleID": [
+            "{9034A9D8-F004-22EA-9391-BF2E5E1CAB31}"
+        ],
+        "includeEnvironments": [
+            "TestCommands",
+            "Default"
+        ]
+    },
+    "locale": {
+        "de": {
+            "Play media URL": "Medien-URL abspielen",
+            "URL": "URL",
+            "Content type": "Inhaltstyp",
+            "Automatic": "Automatisch",
+            "MP3 (audio/mpeg)": "MP3 (audio/mpeg)",
+            "MP4 (video/mp4)": "MP4 (video/mp4)",
+            "JPG image (image/jpeg)": "JPG-Bild (image/jpeg)",
+            "PNG image (image/png)": "PNG-Bild (image/png)",
+            "Live stream": "Live-Stream",
+            "Plays an audio file, video or image from a URL with the Default Media Receiver. The source must be reachable by the device without authentication.": "Spielt eine Audiodatei, ein Video oder ein Bild von einer URL mit dem Default Media Receiver ab. Die Quelle muss vom Gerät ohne Anmeldung erreichbar sein.",
+            "Play {URL} on {TARGET, object}": "{URL} auf {TARGET, object} abspielen"
+        }
+    },
+    "format": "Play {URL} on {TARGET, object}",
+    "description": "Plays an audio file, video or image from a URL with the Default Media Receiver. The source must be reachable by the device without authentication."
+}

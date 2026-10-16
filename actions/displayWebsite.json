@@ -1,0 +1,50 @@
+{
+    "id": "{D5621213-9FCE-4222-81D8-95DC16248AC6}",
+    "caption": "Display website",
+    "form": [
+        {
+            "type": "ValidationTextBox",
+            "name": "URL",
+            "caption": "URL",
+            "validate": "^https?://\\S+$"
+        },
+        {
+            "type": "CheckBox",
+            "name": "DISABLEINPUT",
+            "caption": "Disable input",
+            "value": false
+        },
+        {
+            "type": "CheckBox",
+            "name": "AUTORELOAD",
+            "caption": "Reload automatically",
+            "value": true
+        }
+    ],
+    "action": "CCAST_DisplayWebsite($_IPS['TARGET'], $_IPS['URL'], $_IPS['DISABLEINPUT'], $_IPS['AUTORELOAD']);",
+    "category": "target",
+    "restrictions": {
+        "objectType": [
+            1
+        ],
+        "moduleID": [
+            "{9034A9D8-F004-22EA-9391-BF2E5E1CAB31}"
+        ],
+        "includeEnvironments": [
+            "TestCommands",
+            "Default"
+        ]
+    },
+    "locale": {
+        "de": {
+            "Display website": "Webseite anzeigen",
+            "URL": "URL",
+            "Disable input": "Eingabe sperren",
+            "Reload automatically": "Automatisch neu laden",
+            "Displays a website on the device (DashCast).": "Zeigt eine Webseite auf dem Gerät an (DashCast).",
+            "Display {URL} on {TARGET, object}": "{URL} auf {TARGET, object} anzeigen"
+        }
+    },
+    "format": "Display {URL} on {TARGET, object}",
+    "description": "Displays a website on the device (DashCast)."
+}

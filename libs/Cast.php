@@ -67,6 +67,7 @@ namespace Cast\Device
         public const APP_ICON_SIZE_WIDTH = 'AppIconSizeWidth';
         public const ENABLE_RAW_DURATION = 'enableRawDuration';
         public const ENABLE_RAW_POSITION = 'enableRawPosition';
+        public const ENABLE_PLAYLIST = 'enablePlaylist';
     }
 
     class VariableIdent
@@ -84,11 +85,8 @@ namespace Cast\Device
         public const TITLE = 'title';
         public const ARTIST = 'artist';
         public const COLLECTION = 'collection';
-
-        /**
-         * @todo Fehlt noch
-         */
         public const SHUFFLE = 'shuffleMode';
+        public const PLAYLIST = 'playlist';
     }
 
     class Profile
@@ -301,6 +299,13 @@ namespace Cast
         public const PRESENTATION = 'PRESENTATION';
         public const OTHER = 'OTHER';
 
+        // Wiedergabeliste (Media-Namespace)
+        public const QUEUE_GET_ITEM_IDS = 'QUEUE_GET_ITEM_IDS';
+        public const QUEUE_GET_ITEMS = 'QUEUE_GET_ITEMS';
+        public const QUEUE_ITEM_IDS = 'QUEUE_ITEM_IDS';
+        public const QUEUE_ITEMS = 'QUEUE_ITEMS';
+        public const QUEUE_CHANGE = 'QUEUE_CHANGE';
+
         /*
             { TEXT: "TEXT", AUDIO: "AUDIO", VIDEO: "VIDEO" });
 
@@ -395,6 +400,13 @@ namespace Cast
             524288  => self::LYRICS,
         ];
 
+        /**
+         * Befehle, die mit einer Wiedergabeliste (queueData) immer möglich sind.
+         * Der Default Media Receiver nimmt QUEUE_UPDATE mit jump, repeatMode und shuffle an,
+         * meldet diese Bits aber nicht in supportedMediaCommands (live geprüft 2026-10-16, Nest Hub).
+         */
+        public const QUEUE_COMMANDS = 64 | 256 | 1024 | 2048;
+
         public static function ListAvailableCommands(int $available): array
         {
             $commands = [];
@@ -411,6 +423,25 @@ namespace Cast
             return ($command & $available) == $command;
             //return self::$MediaCommands[]
         }
+
+        /**
+         * Entprellt die vom Gerät gemeldete Bitmaske supportedMediaCommands.
+         * Einige Receiver (z.B. YouTube Music) melden kurzzeitig bzw. abwechselnd unterschiedliche Werte.
+         * Eine Änderung wird erst übernommen, wenn derselbe Wert zweimal in Folge gemeldet wurde.
+         * Ist noch kein Wert aktiv (kleiner gleich 0, z.B. nach App-Wechsel), wird sofort übernommen.
+         *
+         * @param int $current Aktuell übernommene Bitmaske
+         * @param int $pending Zuletzt gemeldete, noch nicht übernommene Bitmaske (-1 = keine)
+         * @param int $reported Neu gemeldete Bitmaske
+         * @return array{0: bool, 1: int} [Übernehmen, neuer Wert für pending]
+         */
+        public static function Debounce(int $current, int $pending, int $reported): array
+        {
+            if (($reported == $current) || ($current <= 0) || ($reported == $pending)) {
+                return [$reported != $current, -1];
+            }
+            return [false, $reported];
+        }
     }
 
     class Queue
@@ -419,11 +450,215 @@ namespace Cast
         public const REPEAT_ALL = 'REPEAT_ALL';
         public const REPEAT_ONE = 'REPEAT_SINGLE';
         public const REPEAT_ALL_AND_SHUFFLE = 'REPEAT_ALL_AND_SHUFFLE';
+        public const REPEAT_MODES = [
+            self::REPEAT_OFF,
+            self::REPEAT_ALL,
+            self::REPEAT_ONE,
+            self::REPEAT_ALL_AND_SHUFFLE
+        ];
+        /**
+         * Werte vom Systemprofil ~Repeat (0 = Aus, 1 = Kontext, 2 = Lied)
+         */
+        public const REPEAT_TO_INT = [
+            self::REPEAT_OFF             => 0,
+            self::REPEAT_ALL             => 1,
+            self::REPEAT_ALL_AND_SHUFFLE => 1,
+            self::REPEAT_ONE             => 2
+        ];
+        public const INT_TO_REPEAT = [
+            0 => self::REPEAT_OFF,
+            1 => self::REPEAT_ALL,
+            2 => self::REPEAT_ONE
+        ];
         public const MEDIA_ITEM_KEYS = [
             'contentUrl'  => '',
             'streamType'  => 'BUFFERED',
             'contentType' => 'video/mp4'
         ];
+
+        /**
+         * Inhalt der Variable mit ~Playlist ohne Wiedergabeliste
+         */
+        public const EMPTY_PLAYLIST = '{"current":-1,"entries":[]}';
+
+        /**
+         * Maximale Anzahl Einträge je QUEUE_GET_ITEMS (Empfehlung der Cast-Doku: max. 20)
+         */
+        public const ITEMS_PER_REQUEST = 20;
+
+        /**
+         * Ermittelt den Künstler aus den Metadaten eines Mediums.
+         * artist, bei Musik ersatzweise albumArtist,
+         * bei GenericMediaMetadata (Typ 0, z.B. Musikvideos bei YouTube Music) ersatzweise subtitle.
+         * Bei Filmen/Serien (Typ 1/2) enthält subtitle eine Beschreibung bzw. den Episodentitel und wird nicht genutzt.
+         *
+         * @param array $metadata media.metadata
+         * @return string Künstler oder leerer String
+         */
+        public static function GetArtist(array $metadata): string
+        {
+            $artist = $metadata['artist'] ?? $metadata['albumArtist'] ?? '';
+            if (($artist === '') && ((int) ($metadata['metadataType'] ?? 0) === 0)) {
+                $artist = $metadata['subtitle'] ?? '';
+            }
+            return is_string($artist) ? $artist : '';
+        }
+
+        /**
+         * Ermittelt den Titel eines Mediums, ohne Titel in den Metadaten den Dateinamen der Quelle.
+         *
+         * @param array $media media aus MEDIA_STATUS bzw. einem Queue-Item
+         * @return string Titel, Dateiname oder leerer String
+         */
+        public static function GetTitle(array $media): string
+        {
+            $title = $media['metadata']['title'] ?? '';
+            if (is_string($title) && ($title !== '')) {
+                return $title;
+            }
+            $source = $media['contentUrl'] ?? $media['contentId'] ?? '';
+            if (!is_string($source) || ($source === '')) {
+                return '';
+            }
+            $path = parse_url($source, PHP_URL_PATH);
+            return is_string($path) ? rawurldecode(basename($path)) : '';
+        }
+
+        /**
+         * Übernimmt Einträge aus MEDIA_STATUS.items bzw. QUEUE_ITEMS in den Zwischenspeicher.
+         *
+         * @param array $cache Bisherige Einträge (itemId => [artist, song, duration])
+         * @param array $items Queue-Items vom Gerät (mit itemId und media)
+         * @return array Aktualisierter Zwischenspeicher
+         */
+        public static function MergeItems(array $cache, array $items): array
+        {
+            foreach ($items as $item) {
+                if (!is_array($item) || !isset($item['itemId'])) {
+                    continue;
+                }
+                $media = is_array($item['media'] ?? null) ? $item['media'] : [];
+                $metadata = is_array($media['metadata'] ?? null) ? $media['metadata'] : [];
+                $cache[(int) $item['itemId']] = [
+                    'artist'   => self::GetArtist($metadata),
+                    'song'     => self::GetTitle($media),
+                    // Nicht gemeldete Dauer nicht mit einem bekannten Wert überschreiben
+                    'duration' => isset($media['duration']) ? (int) $media['duration'] : ($cache[(int) $item['itemId']]['duration'] ?? 0)
+                ];
+            }
+            return $cache;
+        }
+
+        /**
+         * Liefert die itemIds aus der Reihenfolge, zu denen noch keine Einträge vorliegen.
+         *
+         * @param array $itemIds itemIds in Wiedergabereihenfolge
+         * @param array $cache Zwischenspeicher (itemId => Eintrag)
+         * @return array Fehlende itemIds
+         */
+        public static function MissingItemIds(array $itemIds, array $cache): array
+        {
+            return array_values(array_filter($itemIds, fn ($itemId): bool => !isset($cache[(int) $itemId])));
+        }
+
+        /**
+         * Erzeugt den Inhalt einer Variable mit ~Playlist.
+         *
+         * @param array $itemIds itemIds in Wiedergabereihenfolge
+         * @param array $cache Zwischenspeicher (itemId => Eintrag)
+         * @param int $currentItemId itemId der aktuellen Wiedergabe
+         * @return string JSON {"current": Index ab 0 (-1 = unbekannt), "entries": [{artist, song, duration}]}
+         */
+        public static function BuildPlaylist(array $itemIds, array $cache, int $currentItemId): string
+        {
+            $entries = [];
+            foreach ($itemIds as $itemId) {
+                $entries[] = $cache[(int) $itemId] ?? ['artist' => '', 'song' => '', 'duration' => 0];
+            }
+            $current = array_search($currentItemId, array_map('intval', $itemIds), true);
+            return json_encode([
+                'current' => ($current === false) ? -1 : $current,
+                'entries' => $entries
+            ]);
+        }
+
+        /**
+         * Ermittelt die itemId zu einer Auswahl aus der Variable mit ~Playlist.
+         *
+         * @param array $itemIds itemIds in Wiedergabereihenfolge
+         * @param mixed $value Wert der Bedienaktion (JSON mit current bzw. Index)
+         * @return int|null itemId oder null bei ungültiger Auswahl
+         */
+        public static function GetItemIdFromSelection(array $itemIds, mixed $value): ?int
+        {
+            if (is_string($value)) {
+                $selection = json_decode($value, true);
+                $index = is_array($selection) ? ($selection['current'] ?? null) : null;
+            } else {
+                $index = $value;
+            }
+            if (!is_numeric($index) || !isset($itemIds[(int) $index])) {
+                return null;
+            }
+            return (int) $itemIds[(int) $index];
+        }
+
+        /**
+         * Ermittelt Wiederholung und Zufallswiedergabe aus einem MEDIA_STATUS.
+         * Fehlt ein Wert im Status, wird null geliefert (Variable behält ihren Wert).
+         *
+         * @param array $status Ein Eintrag aus MEDIA_STATUS.status
+         * @return array{0: ?int, 1: ?bool} [Wert für ~Repeat, Wert für ~Shuffle]
+         */
+        public static function ParseRepeatShuffle(array $status): array
+        {
+            $repeatMode = $status['repeatMode'] ?? $status['queueData']['repeatMode'] ?? null;
+            $repeat = is_string($repeatMode) ? (self::REPEAT_TO_INT[$repeatMode] ?? null) : null;
+            $shuffle = null;
+            if (isset($status['queueData']['shuffle'])) {
+                $shuffle = (bool) $status['queueData']['shuffle'];
+            }
+            if ($repeatMode === self::REPEAT_ALL_AND_SHUFFLE) {
+                $shuffle = true;
+            }
+            // Spotify meldet den tatsächlichen Zustand nur im eigenen Player-Status (repeat_mode: 0 = Aus, 1 = Kontext, 2 = Lied),
+            // repeatMode der Cast-Ebene wird sofort gesetzt, auch wenn Spotify den Befehl erst später oder gar nicht übernimmt
+            $playerState = $status['media']['customData']['playerPlaybackState'] ?? null;
+            if (is_array($playerState)) {
+                if (isset($playerState['repeat_mode']) && isset(self::INT_TO_REPEAT[(int) $playerState['repeat_mode']])) {
+                    $repeat = (int) $playerState['repeat_mode'];
+                }
+                if (isset($playerState['shuffle'])) {
+                    $shuffle = (bool) $playerState['shuffle'];
+                }
+            }
+            return [$repeat, $shuffle];
+        }
+
+        /**
+         * Prüft die Einträge einer Wiedergabeliste und ergänzt fehlende Standardwerte.
+         *
+         * @param array $items Einträge mit mindestens contentUrl
+         * @param callable $mimeResolver Liefert den MIME-Typ zu einer Dateiendung
+         * @return array|string Liste der Queue-Items, bei Fehler die (unübersetzte) Fehlermeldung
+         */
+        public static function BuildItems(array $items, callable $mimeResolver): array|string
+        {
+            if (count($items) == 0) {
+                return 'Queue has no items';
+            }
+            $payloadItems = [];
+            foreach ($items as $item) {
+                if (!is_array($item) || !isset($item['contentUrl']) || !is_string($item['contentUrl']) || ($item['contentUrl'] === '')) {
+                    return 'Every queue item needs a contentUrl';
+                }
+                $item['contentType'] = $item['contentType'] ?? $mimeResolver(pathinfo((string) parse_url($item['contentUrl'], PHP_URL_PATH), PATHINFO_EXTENSION));
+                $payloadItems[] = [
+                    'media' => array_merge(self::MEDIA_ITEM_KEYS, $item)
+                ];
+            }
+            return $payloadItems;
+        }
     }
     class PlayerState
     {

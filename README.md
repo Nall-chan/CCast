@@ -62,9 +62,6 @@ Die Steuerung von nativen Android Apps auf diesen Geräten wird nur eingeschrän
   
 Über den 'Module-Store' in IPS das Modul `ChromeCast` hinzufügen.  
 
-> [!IMPORTANT]
-> Bei kommerzieller Nutzung (z.B. als Errichter oder Integrator) wenden Sie sich bitte an den Autor.
-
 ![Module-Store](imgs/install.png)  
 
 ## 4. Enthaltende Module
@@ -88,11 +85,23 @@ Die Steuerung von nativen Android Apps auf diesen Geräten wird nur eingeschrän
 
 ### 2. Changelog
 
-**Version 0.30 (in Entwicklung):**  
+**Version 0.50:**  
 
 - PHP-Befehle ergänzt um:  
   - `CCAST_PlayYouTube` / `CCAST_PlayYouTubeMusic` (YouTube Lounge API, Titel und Playlisten)
   - `CCAST_SetVolume` (ersetzt `CCAST_SetVolumen`, alter Name bleibt als Alias erhalten)
+  - `CCAST_SetShuffle` (ersetzt `CCAST_Shuffle`, alter Name bleibt als Alias erhalten und schaltet die Zufallswiedergabe ein)
+- PHP-Befehle `CCAST_SetLike`, `CCAST_SetDislike` und `CCAST_DisplayLyrics` vorerst entfernt: Die getesteten Apps (YouTube, YouTube Music) lehnen diese Befehle ab. Eine Umsetzung über die Dienste selbst ist für eine spätere Version geplant
+- Neue Statusvariablen `Wiederholung` (`~Repeat`) und `Zufallswiedergabe` (`~Shuffle`), bedienbar bei aktiver Wiedergabeliste bzw. wenn die App die Funktion meldet (auch in der Media-Kachel)
+- Die bisherige Statusvariable `Wiederholung` (Typ string) aus Vorversionen wird automatisch gelöscht und als Integer-Variable neu angelegt
+- `CCAST_SetRepeat` / `CCAST_SetShuffle` warten nur noch kurz auf eine Antwort (das Gerät antwortet verzögert oder gar nicht, vorher Fehlermeldung nach 10 Sekunden), der neue Zustand wird über die Statusvariablen gemeldet; ungültige Werte bei `CCAST_SetRepeat` werden abgelehnt
+- `CCAST_LoadMediaQueue` prüft die Einträge und den `StartIndex`, bevor der Default Media Receiver gestartet wird
+- Neue Statusvariable `Wiedergabeliste` (`~Playlist`, im Formular abschaltbar): zeigt die Einträge einer Cast-Wiedergabeliste in der Media-Kachel, Anwahl eines Eintrags springt auf diesen
+- Neue Aktionen: `Medien-URL abspielen`, `Text ansagen`, `Webseite anzeigen`, `YouTube / YouTube Music abspielen`, `App beenden`
+- Statusvariable `Titel` zeigt ohne Titel in den Metadaten den Dateinamen der Quelle
+- Spotify: Wiederholung und Zufallswiedergabe zeigen den tatsächlichen Zustand der Spotify-Wiedergabe
+- `CCAST_SetRepeat` / `CCAST_SetShuffle` melden eine Ablehnung durch die App (z.B. YouTube Music) als Fehler
+- `CCAST_PlayYouTube` / `CCAST_PlayYouTubeMusic` mit nur `ListId` starten die App bei laufender Wiedergabe neu und spielen die Liste ab dem ersten Eintrag (vorher zeigte YouTube Music dauerhaft abwechselnd den alten und den neuen Titel an)
 - Konfiguration: Statusvariablen `Dauer in Sekunden` und `Position in Sekunden` sind jetzt im Formular abschaltbar
 - Statusvariablen `Aktive App`, `Dauer`, `Position`, `Dauer in Sekunden`, `Position in Sekunden` und `Sammlung` haben jetzt Profile mit Icon (Sekunden mit Einheit `s`)
 - Wiedergabestatus: Unterstützt die App Pause, wird nur Play/Pause ohne Stop angeboten (vorher vertauscht)
@@ -100,7 +109,6 @@ Die Steuerung von nativen Android Apps auf diesen Geräten wird nur eingeschrän
 - Fehler bei Bedienaktionen (z.B. Gerät nicht verbunden, Timeout, Fehlermeldung vom Gerät) werden im Frontend angezeigt, bei Skripten und internen Abläufen als Fehlermeldung ausgegeben
 - Vom Gerät gemeldete, unbekannte Apps werden automatisch in das App-Profil aufgenommen (zurücksetzbar im Formular)
 - Protobuf-Bibliothek auf google/protobuf 5.36.2 aktualisiert (PHP 8.5 kompatibel)
-- Lizenz geändert: von CC BY-NC-SA 4.0 auf eigene Lizenz (Custom NC-SA, siehe [LICENSE](LICENSE))
 - Wiedergabestatus wird im Leerlauf korrekt für die Media-Kachel dargestellt
 - Künstler wird bei Bedarf aus `albumArtist` bzw. `subtitle` ermittelt (z.B. YouTube Music Videos)
 - `CCAST_PlayYouTube` / `CCAST_PlayYouTubeMusic` melden einen Fehler, wenn weder `VideoId` noch `ListId` übergeben wird
@@ -110,6 +118,11 @@ Die Steuerung von nativen Android Apps auf diesen Geräten wird nur eingeschrän
   - Nach dem Beenden der Verbindung durch das Gerät liefen Folgebefehle ins Timeout
   - Nach dem Laden einer Wiedergabe blieb der Wiedergabestatus teilweise auf Stop stehen
   - Zu viele Statusabfragen beim Puffern bzw. Titelwechsel
+  - Konnte ein Cover nicht geladen werden, blieb das vorherige Bild (z.B. ein Foto aus dem Ruhemodus) stehen; jetzt wird das Ersatzbild angezeigt
+  - Das Medienobjekt `Media` wird hinter den Statusvariablen einsortiert
+  - Bedienelemente (z.B. Zurück/Weiter) flackerten, wenn das Gerät kurzzeitig abweichende Befehle meldete
+  - Nach einem Verbindungsabbruch wurde die Verbindung zur laufenden App nicht neu aufgebaut, Medienbefehle liefen ins Timeout
+  - Ohne Verbindung meldete `CCAST_RequestMediaState` fälschlich, dass die App keinen Medienstatus unterstützt
   - `CCAST_DisplayWebsite` meldete nach 10 Sekunden fälschlich einen Fehler
   - Nach dem Laden einer Instanz wurde ohne aktive Verbindung kurzzeitig `Connected to ChromeCast` gemeldet und eine Statusabfrage gesendet
   - Warnungen `Socket ist nicht verbunden`, wenn ohne aktive Verbindung gesendet wurde

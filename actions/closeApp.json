@@ -1,0 +1,28 @@
+{
+    "id": "{ACA9CDA2-2A89-4747-9849-829F351318F7}",
+    "caption": "Close app",
+    "form": [],
+    "action": "CCAST_CloseApp($_IPS['TARGET']);",
+    "category": "target",
+    "restrictions": {
+        "objectType": [
+            1
+        ],
+        "moduleID": [
+            "{9034A9D8-F004-22EA-9391-BF2E5E1CAB31}"
+        ],
+        "includeEnvironments": [
+            "TestCommands",
+            "Default"
+        ]
+    },
+    "locale": {
+        "de": {
+            "Close app": "App beenden",
+            "Closes the running Cast app, the device returns to its idle screen.": "Beendet die laufende Cast-App, das Gerät kehrt in den Ruhemodus zurück.",
+            "Close app on {TARGET, object}": "App auf {TARGET, object} beenden"
+        }
+    },
+    "format": "Close app on {TARGET, object}",
+    "description": "Closes the running Cast app, the device returns to its idle screen."
+}

@@ -1,0 +1,65 @@
+{
+    "id": "{1CB3A3F1-DFE7-4D63-A7FD-A7B46992C150}",
+    "caption": "Play YouTube / YouTube Music",
+    "form": [
+        {
+            "type": "Select",
+            "name": "SERVICE",
+            "caption": "Service",
+            "value": 0,
+            "options": [
+                {
+                    "caption": "YouTube",
+                    "value": 0
+                },
+                {
+                    "caption": "YouTube Music",
+                    "value": 1
+                }
+            ]
+        },
+        {
+            "type": "ValidationTextBox",
+            "name": "VIDEOID",
+            "caption": "VideoId (value after v=)",
+            "validate": "^([A-Za-z0-9_-]{11})?$"
+        },
+        {
+            "type": "ValidationTextBox",
+            "name": "LISTID",
+            "caption": "ListId (value after list=)",
+            "validate": "^[A-Za-z0-9_-]*$"
+        },
+        {
+            "type": "Label",
+            "caption": "Enter only the IDs from the address, not the URL. At least one of both is required."
+        }
+    ],
+    "action": "if ($_IPS['SERVICE'] == 1) { CCAST_PlayYouTubeMusic($_IPS['TARGET'], $_IPS['VIDEOID'], $_IPS['LISTID']); } else { CCAST_PlayYouTube($_IPS['TARGET'], $_IPS['VIDEOID'], $_IPS['LISTID']); }",
+    "category": "target",
+    "restrictions": {
+        "objectType": [
+            1
+        ],
+        "moduleID": [
+            "{9034A9D8-F004-22EA-9391-BF2E5E1CAB31}"
+        ],
+        "includeEnvironments": [
+            "TestCommands",
+            "Default"
+        ]
+    },
+    "locale": {
+        "de": {
+            "Play YouTube / YouTube Music": "YouTube / YouTube Music abspielen",
+            "Service": "Dienst",
+            "VideoId (value after v=)": "VideoId (Wert hinter v=)",
+            "ListId (value after list=)": "ListId (Wert hinter list=)",
+            "Enter only the IDs from the address, not the URL. At least one of both is required.": "Nur die IDs aus der Adresse eintragen, nicht die URL. Mindestens eine der beiden ist erforderlich.",
+            "Starts YouTube or YouTube Music on the device and plays a video, title or playlist. No Google account is required.": "Startet YouTube bzw. YouTube Music auf dem Gerät und spielt ein Video, einen Titel oder eine Playlist ab. Ein Google-Konto ist nicht erforderlich.",
+            "Play {SERVICE, select, 1 {YouTube Music} other {YouTube}} {VIDEOID} {LISTID} on {TARGET, object}": "{SERVICE, select, 1 {YouTube Music} other {YouTube}} {VIDEOID} {LISTID} auf {TARGET, object} abspielen"
+        }
+    },
+    "format": "Play {SERVICE, select, 1 {YouTube Music} other {YouTube}} {VIDEOID} {LISTID} on {TARGET, object}",
+    "description": "Starts YouTube or YouTube Music on the device and plays a video, title or playlist. No Google account is required."
+}

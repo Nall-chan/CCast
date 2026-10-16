@@ -1,0 +1,43 @@
+{
+    "id": "{D513D04E-499B-4F81-B6BA-C3FE9A892D0B}",
+    "caption": "Announce text",
+    "form": [
+        {
+            "type": "ValidationTextBox",
+            "name": "TEXT",
+            "caption": "Text (max. 200 characters)",
+            "validate": "^(?=.*\\S).{1,200}$"
+        },
+        {
+            "type": "CheckBox",
+            "name": "CLOSEAPP",
+            "caption": "Close app after announcement",
+            "value": true
+        }
+    ],
+    "action": "CCAST_PlayText($_IPS['TARGET'], $_IPS['TEXT'], $_IPS['CLOSEAPP']);",
+    "category": "target",
+    "restrictions": {
+        "objectType": [
+            1
+        ],
+        "moduleID": [
+            "{9034A9D8-F004-22EA-9391-BF2E5E1CAB31}"
+        ],
+        "includeEnvironments": [
+            "TestCommands",
+            "Default"
+        ]
+    },
+    "locale": {
+        "de": {
+            "Announce text": "Text ansagen",
+            "Text (max. 200 characters)": "Text (max. 200 Zeichen)",
+            "Close app after announcement": "App nach der Ansage beenden",
+            "Announces a text on the device in the system language of Symcon. Uses an unofficial Google Translate service.": "Sagt einen Text in der Systemsprache von Symcon auf dem Gerät an. Nutzt einen nicht offiziellen Dienst von Google Translate.",
+            "Announce \"{TEXT}\" on {TARGET, object}": "„{TEXT}“ auf {TARGET, object} ansagen"
+        }
+    },
+    "format": "Announce \"{TEXT}\" on {TARGET, object}",
+    "description": "Announces a text on the device in the system language of Symcon. Uses an unofficial Google Translate service."
+}
